@@ -1,0 +1,57 @@
+{
+  "BTCUSDT": {
+    "nombre": "Bitcoin / USDT",
+    "categoria": "crypto",
+    "mercado": "Binance",
+    "sesion": "24/7",
+    "zona_horaria": "UTC",
+    "temporalidad": "15m",
+    "archivo": "BTCUSDT_15m.csv",
+    "tipo_timestamp": "instante_utc",
+    "formula_retorno": "(close_final / open_inicial - 1) * 100"
+  },
+  "GBPJPY": {
+    "nombre": "Libra esterlina / Yen japones",
+    "categoria": "forex",
+    "mercado": "Forex",
+    "sesion": "24/5",
+    "zona_horaria": "UTC",
+    "temporalidad": "1d",
+    "archivo": "GBPJPY_1d.csv",
+    "tipo_timestamp": "fecha_sesion",
+    "formula_retorno": "(close_final / open_inicial - 1) * 100"
+  },
+  "GOLD": {
+    "nombre": "Oro",
+    "categoria": "commodity",
+    "mercado": "COMEX",
+    "sesion": "24/5",
+    "zona_horaria": "America/New_York",
+    "temporalidad": "1d",
+    "archivo": "GOLD_1d.csv",
+    "tipo_timestamp": "fecha_sesion",
+    "formula_retorno": "(close_final / open_inicial - 1) * 100"
+  },
+  "NIKKEI225": {
+    "nombre": "Nikkei 225",
+    "categoria": "indice",
+    "mercado": "Tokyo Stock Exchange",
+    "sesion": "Japon",
+    "zona_horaria": "Asia/Tokyo",
+    "temporalidad": "1d",
+    "archivo": "NIKKEI225_1d.csv",
+    "tipo_timestamp": "fecha_sesion",
+    "formula_retorno": "(close_final / open_inicial - 1) * 100"
+  },
+  "SP500": {
+    "nombre": "S&P 500",
+    "categoria": "indice",
+    "mercado": "NYSE",
+    "sesion": "USA",
+    "zona_horaria": "America/New_York",
+    "temporalidad": "1d",
+    "archivo": "SP500_1d.csv",
+    "tipo_timestamp": "fecha_sesion",
+    "formula_retorno": "(close_final / open_inicial - 1) * 100"
+  }
+}

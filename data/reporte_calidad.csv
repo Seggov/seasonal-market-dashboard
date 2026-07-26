@@ -1,0 +1,55 @@
+symbol,issue,severity,column,start_timestamp,end_timestamp,count,source_file,source_row,details
+BTCUSDT,missing_intervals,warning,timestamp,2017-09-06T16:00:00Z,2017-09-06T23:00:00Z,27,btc_15m.csv,1971,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2017-12-04T06:00:00Z,2017-12-04T06:45:00Z,2,btc_15m.csv,10448,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2017-12-18T12:15:00Z,2017-12-18T13:30:00Z,4,btc_15m.csv,11815,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-01-04T03:00:00Z,2018-01-04T05:00:00Z,7,btc_15m.csv,13406,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-02-08T00:15:00Z,2018-02-09T10:00:00Z,134,btc_15m.csv,16748,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-02-10T05:45:00Z,2018-02-10T06:15:00Z,1,btc_15m.csv,16828,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-02-11T04:00:00Z,2018-02-11T04:30:00Z,1,btc_15m.csv,16916,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-06-26T01:45:00Z,2018-06-26T12:00:00Z,40,btc_15m.csv,29866,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-06-27T12:45:00Z,2018-06-27T14:45:00Z,7,btc_15m.csv,29966,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-07-04T00:15:00Z,2018-07-04T08:00:00Z,30,btc_15m.csv,30581,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-10-19T05:45:00Z,2018-10-19T09:30:00Z,14,btc_15m.csv,40845,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2018-11-14T01:45:00Z,2018-11-14T09:00:00Z,28,btc_15m.csv,43311,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-03-12T01:45:00Z,2019-03-12T08:00:00Z,24,btc_15m.csv,54611,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-05-15T02:45:00Z,2019-05-15T13:00:00Z,40,btc_15m.csv,60735,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-06-07T21:00:00Z,2019-06-07T22:15:00Z,4,btc_15m.csv,62976,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-08-15T01:45:00Z,2019-08-15T10:00:00Z,32,btc_15m.csv,69519,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-11-13T01:45:00Z,2019-11-13T04:15:00Z,9,btc_15m.csv,78127,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2019-11-25T01:45:00Z,2019-11-25T04:00:00Z,8,btc_15m.csv,79270,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-02-09T01:45:00Z,2020-02-09T03:00:00Z,4,btc_15m.csv,86558,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-02-19T11:30:00Z,2020-02-19T17:30:00Z,23,btc_15m.csv,87553,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-03-04T09:15:00Z,2020-03-04T11:30:00Z,8,btc_15m.csv,88865,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-04-25T01:45:00Z,2020-04-25T04:30:00Z,10,btc_15m.csv,93819,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-06-28T01:45:00Z,2020-06-28T05:30:00Z,14,btc_15m.csv,99953,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-11-30T05:45:00Z,2020-11-30T07:00:00Z,4,btc_15m.csv,114835,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-12-21T13:45:00Z,2020-12-21T18:00:00Z,16,btc_15m.csv,116879,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2020-12-25T01:45:00Z,2020-12-25T03:00:00Z,4,btc_15m.csv,117199,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-02-11T03:30:00Z,2021-02-11T05:00:00Z,5,btc_15m.csv,121810,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-03-06T01:45:00Z,2021-03-06T03:30:00Z,6,btc_15m.csv,124006,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-04-20T01:45:00Z,2021-04-20T04:30:00Z,10,btc_15m.csv,128320,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-04-25T04:00:00Z,2021-04-25T08:45:00Z,18,btc_15m.csv,128799,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-08-13T01:45:00Z,2021-08-13T06:30:00Z,18,btc_15m.csv,139332,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2021-09-29T06:45:00Z,2021-09-29T09:00:00Z,8,btc_15m.csv,143846,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_intervals,warning,timestamp,2023-03-24T12:30:00Z,2023-03-24T14:00:00Z,5,btc_15m.csv,195797,Intervalos de 15 minutos ausentes; no se rellenaron.
+BTCUSDT,missing_values,info,change_percent,2017-08-17T04:00:00Z,2026-07-04T01:30:00Z,310754,btc_15m.csv,,El archivo fuente no proporciona estos valores; se conservaron vacios.
+GBPJPY,missing_values,info,volume,2014-01-01,2024-12-31,2870,gbpjyphistorico.csv,,El archivo fuente no proporciona estos valores; se conservaron vacios.
+GBPJPY,ohlc_out_of_range,warning,"high,low",2019-07-02,2019-07-02,1,gbpjyphistorico.csv,1437,"open=137.09, high=137.24, low=135.85, close=135.83"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2021-01-01,2021-01-01,1,gbpjyphistorico.csv,1044,"open=141.18, high=141.22, low=141.11, close=141.08"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2021-04-22,2021-04-22,1,gbpjyphistorico.csv,965,"open=150.56, high=150.67, low=149.39, close=149.37"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2021-06-01,2021-06-01,1,gbpjyphistorico.csv,937,"open=155.71, high=155.96, low=154.85, close=154.83"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2021-06-04,2021-06-04,1,gbpjyphistorico.csv,934,"open=155.58, high=155.84, low=154.99, close=154.97"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2021-08-13,2021-08-13,1,gbpjyphistorico.csv,884,"open=152.43, high=152.63, low=151.91, close=151.9"
+GBPJPY,ohlc_out_of_range,warning,"high,low",2024-09-04,2024-09-04,1,gbpjyphistorico.csv,86,"open=190.76, high=190.9, low=188.93, close=188.89"
+GOLD,missing_values,info,volume,2000-01-04,2024-12-31,12,gold.csv,,El archivo fuente no proporciona estos valores; se conservaron vacios.
+GOLD,ohlc_out_of_range,warning,"high,low",2018-04-10,2018-04-10,1,gold.csv,4600,"open=1336.9, high=1342.7, low=1331.3, close=1342.9"
+GOLD,ohlc_out_of_range,warning,"high,low",2018-04-23,2018-04-23,1,gold.csv,4609,"open=1331.1, high=1333.6, low=1320.7, close=1320.6"
+GOLD,ohlc_out_of_range,warning,"high,low",2019-04-24,2019-04-24,1,gold.csv,4868,"open=1271.5, high=1276.5, low=1267.9, close=1276.6"
+GOLD,ohlc_out_of_range,warning,"high,low",2019-06-20,2019-06-20,1,gold.csv,4909,"open=1361.2, high=1393.9, low=1358.8, close=1394.1"
+GOLD,ohlc_out_of_range,warning,"high,low",2020-04-09,2020-04-09,1,gold.csv,6265,"open=1669.2, high=1739.7, low=1666.5, close=1739.9"
+GOLD,ohlc_out_of_range,warning,"high,low",2021-12-02,2021-12-02,1,gold.csv,5839,"open=1782.2, high=1782.5, low=1761.8, close=1761.6"
+GOLD,ohlc_out_of_range,warning,"high,low",2021-12-23,2021-12-23,1,gold.csv,5824,"open=1804.9, high=1810.8, low=1799.8, close=1811.0"
+GOLD,ohlc_out_of_range,warning,"high,low",2024-06-18,2024-06-18,1,gold.csv,5184,"open=2323.3, high=2334.5, low=2309.1, close=2334.8"
+GOLD,ohlc_out_of_range,warning,"high,low",2024-12-24,2024-12-24,1,gold.csv,5051,"open=2616.5, high=2622.7, low=2612.5, close=2622.8"
+NIKKEI225,missing_values,info,volume,2000-01-04,2020-05-29,5000,Nikkei 225 Historical Data.csv,,El archivo fuente no proporciona estos valores; se conservaron vacios.
+SP500,missing_values,info,volume,2014-01-02,2024-12-31,2768,sp500.csv,,El archivo fuente no proporciona estos valores; se conservaron vacios.
