@@ -7,7 +7,12 @@ import pandas as pd
 import pytest
 
 from src.configuracion import ActivoConfig
-from src.datos import ErrorDatos, calcular_cobertura, leer_y_validar_datos
+from src.datos import (
+    COLUMNAS_OBLIGATORIAS,
+    ErrorDatos,
+    calcular_cobertura,
+    leer_y_validar_datos,
+)
 
 
 def test_rechaza_columnas_obligatorias_faltantes(
@@ -23,6 +28,37 @@ def test_rechaza_columnas_obligatorias_faltantes(
         leer_y_validar_datos(crear_activo(archivo=ruta_csv))
 
 
+def test_rechaza_columnas_adicionales(
+    crear_csv: Callable[..., Path], crear_activo: Callable[..., ActivoConfig]
+) -> None:
+    """Impide reintroducir metadata del formato historico anterior."""
+
+    ruta_csv = crear_csv()
+    tabla = pd.read_csv(ruta_csv)
+    tabla["symbol"] = "PRUEBA"
+    tabla.to_csv(ruta_csv, index=False)
+
+    with pytest.raises(ErrorDatos, match="sobran columnas no admitidas: symbol"):
+        leer_y_validar_datos(crear_activo(archivo=ruta_csv))
+
+
+def test_deriva_metadata_desde_activo_sin_alterar_fuente(
+    crear_csv: Callable[..., Path], crear_activo: Callable[..., ActivoConfig]
+) -> None:
+    """El CSV conserva seis columnas y la metadata se agrega al resultado valido."""
+
+    ruta_csv = crear_csv([{"timestamp_utc": "2024-01-01T00:00:00Z"}])
+    resultado = leer_y_validar_datos(crear_activo(archivo=ruta_csv))
+    fila = resultado.datos_validos.iloc[0]
+
+    assert list(resultado.datos_originales.columns) == list(COLUMNAS_OBLIGATORIAS)
+    assert fila["symbol"] == "PRUEBA"
+    assert fila["timeframe"] == "1h"
+    assert fila["source_file"] == ruta_csv.name
+    assert fila["return_percent"] == pytest.approx(5.0)
+    assert str(resultado.datos_validos["timestamp"].dt.tz) == "UTC"
+
+
 def test_separa_ohlc_coherente_e_incoherente(
     crear_csv: Callable[..., Path], crear_activo: Callable[..., ActivoConfig]
 ) -> None:
@@ -30,8 +66,8 @@ def test_separa_ohlc_coherente_e_incoherente(
 
     ruta_csv = crear_csv(
         [
-            {"timestamp": "2024-01-01 00:00:00"},
-            {"timestamp": "2024-01-01 01:00:00", "high": 104},
+            {"timestamp_utc": "2024-01-01 00:00:00"},
+            {"timestamp_utc": "2024-01-01 01:00:00", "high": 104},
         ]
     )
 
@@ -42,19 +78,18 @@ def test_separa_ohlc_coherente_e_incoherente(
     assert "OHLC incoherente" in resultado.invalidos.loc[0, "motivo_invalidez"]
 
 
-def test_clasifica_signo_desde_open_close_y_no_desde_la_fuente(
+def test_clasifica_signo_desde_open_close(
     crear_csv: Callable[..., Path], crear_activo: Callable[..., ActivoConfig]
 ) -> None:
-    """Un return_percent fuente incorrecto no cambia el signo real de la vela."""
+    """El signo se deriva de precios porque el CSV no publica retornos."""
 
     ruta_csv = crear_csv(
         [
-            {"timestamp": "2024-01-01T00:00:00Z", "return_percent": -99},
+            {"timestamp_utc": "2024-01-01T00:00:00Z"},
             {
-                "timestamp": "2024-01-01T01:00:00Z",
+                "timestamp_utc": "2024-01-01T01:00:00Z",
                 "open": 100,
                 "close": 100,
-                "return_percent": 50,
             },
         ]
     )
@@ -73,8 +108,8 @@ def test_convierte_utc_a_zona_local_respetando_dst(
 
     ruta_csv = crear_csv(
         [
-            {"timestamp": "2024-03-10T06:30:00Z"},
-            {"timestamp": "2024-03-10T07:30:00Z"},
+            {"timestamp_utc": "2024-03-10T06:30:00Z"},
+            {"timestamp_utc": "2024-03-10T07:30:00Z"},
         ]
     )
     activo = crear_activo(
@@ -97,7 +132,7 @@ def test_fecha_sesion_es_naive_y_se_normaliza_a_medianoche(
     """Quita la hora sin inventar zona para una fecha de sesion."""
 
     ruta_csv = crear_csv(
-        [{"timestamp": "2024-07-15 18:45:30", "timeframe": "1d"}]
+        [{"timestamp_utc": "2024-07-15 18:45:30"}]
     )
     activo = crear_activo(
         archivo=ruta_csv, temporalidad="1d", tipo_timestamp="fecha_sesion"

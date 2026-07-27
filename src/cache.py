@@ -12,7 +12,7 @@ from uuid import uuid4
 import pandas as pd
 
 
-VERSION_CACHE = "1"
+VERSION_CACHE = "3"
 
 
 class ErrorCache(RuntimeError):

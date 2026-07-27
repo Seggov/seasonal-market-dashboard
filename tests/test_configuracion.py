@@ -93,3 +93,26 @@ def test_modo_tolerante_conserva_activos_validos(tmp_path: Path) -> None:
     assert list(activos) == ["VALIDO"]
     assert "ROTO" in errores
     assert "no existe el CSV declarado" in errores["ROTO"]
+
+
+def test_catalogo_real_contiene_solo_las_ocho_series_h1() -> None:
+    """Fija el alcance deliberadamente cerrado de esta aplicacion local."""
+
+    activos = cargar_activos()
+
+    assert set(activos) == {
+        "BTCUSDT",
+        "SP500",
+        "NIKKEI225",
+        "USA500IDXUSD",
+        "JPNIDXJPY",
+        "XAUUSD",
+        "XAGUSD",
+        "WTI_LIGHTCMDUSD",
+    }
+    assert {activo.temporalidad for activo in activos.values()} == {"1h"}
+    assert {activo.tipo_timestamp for activo in activos.values()} == {"instante_utc"}
+    assert {
+        activos[simbolo].sesion
+        for simbolo in ("USA500IDXUSD", "JPNIDXJPY", "XAUUSD", "XAGUSD", "WTI_LIGHTCMDUSD")
+    } == {"Dukascopy 24/5 extendida"}

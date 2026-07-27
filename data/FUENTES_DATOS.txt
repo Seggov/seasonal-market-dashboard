@@ -1,0 +1,79 @@
+DATOS HISTORICOS EN VELAS DE 1 HORA
+
+Actualizado (UTC): 2026-07-26T19:01:15Z
+Zona horaria de todos los CSV: UTC
+Columnas: timestamp_utc, open, high, low, close, volume
+Solo se incluyen velas cerradas cuando la fuente permite identificarlas.
+
+ARCHIVOS Y COBERTURA
+- SP500_1h.csv
+  Instrumento: S&P 500 Index (^GSPC)
+  Fuente: Yahoo Finance chart API
+  Filas: 5081
+  Desde: 2023-08-25T13:30:00Z
+  Hasta: 2026-07-24T20:00:00Z
+- Nikkei225_1h.csv
+  Instrumento: Nikkei 225 Index (^N225)
+  Fuente: Yahoo Finance chart API
+  Filas: 5090
+  Desde: 2023-07-28T00:00:00Z
+  Hasta: 2026-07-24T06:30:00Z
+- BTCUSDT_1h.csv
+  Instrumento: Bitcoin / Tether (BTCUSDT)
+  Fuente: Binance public spot API
+  Filas: 78245
+  Desde: 2017-08-17T04:00:00Z
+  Hasta: 2026-07-26T16:00:00Z
+- USA500IDXUSD_Dukascopy_1h.csv
+  Instrumento: US 500 Index CFD (USA500.IDX/USD)
+  Fuente: Dukascopy, precio bid
+  Filas: 74294
+  Desde: 2011-09-18T21:00:00Z
+  Hasta: 2026-07-24T20:00:00Z
+- JPNIDXJPY_Dukascopy_1h.csv
+  Instrumento: Japan 225 Index CFD (JPN.IDX/JPY)
+  Fuente: Dukascopy, precio bid
+  Filas: 75722
+  Desde: 2011-09-18T21:00:00Z
+  Hasta: 2026-07-24T20:00:00Z
+- XAUUSD_Dukascopy_1h.csv
+  Instrumento: Oro spot frente al dolar (XAU/USD)
+  Fuente: Dukascopy, precio bid
+  Filas: 140352
+  Desde: 2003-05-05T00:00:00Z
+  Hasta: 2026-07-24T20:00:00Z
+- XAGUSD_Dukascopy_1h.csv
+  Instrumento: Plata spot frente al dolar (XAG/USD)
+  Fuente: Dukascopy, precio bid
+  Filas: 139418
+  Desde: 2003-05-04T23:00:00Z
+  Hasta: 2026-07-24T20:00:00Z
+- WTI_LIGHTCMDUSD_Dukascopy_1h.csv
+  Instrumento: Petroleo WTI CFD (LIGHT.CMD/USD)
+  Fuente: Dukascopy, precio bid
+  Filas: 85909
+  Desde: 2011-09-23T07:00:00Z
+  Hasta: 2026-07-24T20:00:00Z
+
+NOTAS
+- Yahoo Finance limita el intervalo de 1 hora a aproximadamente 730 dias.
+- Los indices solo tienen velas durante sus sesiones de mercado.
+- El volumen de los indices puede ser cero o no estar disponible.
+- BTCUSDT es Bitcoin cotizado en USDT; USDT busca mantener paridad con USD.
+- El historial de BTC comienza con la primera vela disponible en Binance.
+- USA500.IDX/USD y JPN.IDX/JPY son CFD que replican indices; no son los indices oficiales al contado.
+- XAU/USD y XAG/USD son precios spot; LIGHT.CMD/USD es el CFD de crudo ligero WTI.
+- El volumen de Dukascopy es el reportado por ese proveedor y no volumen oficial de la bolsa subyacente.
+- No se generaron velas planas para rellenar cierres, festivos ni huecos de la fuente.
+- Dukascopy contenia 41 velas WTI con high/low desviado hasta 0.002 respecto a open/close. Se ajusto solo el extremo para que cada OHLC fuera coherente.
+- Los datos proceden de servicios publicos y pueden contener huecos de origen.
+
+FUENTES
+- https://finance.yahoo.com/quote/%5EGSPC/
+- https://finance.yahoo.com/quote/%5EN225/
+- https://www.binance.com/en/trade/BTC_USDT
+- https://www.dukascopy-node.app/instrument/usa500idxusd
+- https://www.dukascopy-node.app/instrument/jpnidxjpy
+- https://www.dukascopy-node.app/instrument/xauusd
+- https://www.dukascopy-node.app/instrument/xagusd
+- https://www.dukascopy-node.app/instrument/lightcmdusd

@@ -121,10 +121,10 @@ TEMAS = {
 
 ETIQUETAS_CATEGORIAS = {
     "crypto": "Criptomonedas",
-    "forex": "Forex",
-    "commodity": "Materias primas",
-    "indice": "Índices",
-    "índice": "Índices",
+    "indice_oficial": "Índices oficiales",
+    "cfd_indice": "CFD de índices",
+    "metal_spot": "Metales spot",
+    "energia_cfd": "Energía CFD",
 }
 
 
@@ -705,7 +705,7 @@ def _fila_catalogo(activo: ActivoConfig) -> dict[str, Any]:
     base = {
         "Símbolo": activo.simbolo,
         "Activo": activo.nombre,
-        "Categoría": activo.categoria,
+        "Categoría": _etiqueta_categoria(activo.categoria),
         "Mercado": activo.mercado,
         "Sesión": activo.sesion,
         "Zona horaria": activo.zona_horaria,
@@ -774,10 +774,10 @@ def _pantalla_seleccion(activos: dict[str, ActivoConfig]) -> None:
 
     cabecera, tema_columna = st.columns([5, 1], vertical_alignment="top")
     with cabecera:
-        st.markdown('<div class="finance-kicker">Catálogo local</div>', unsafe_allow_html=True)
-        st.markdown('<h1 class="finance-title">Análisis histórico de mercados</h1>', unsafe_allow_html=True)
+        st.markdown('<div class="finance-kicker">Catálogo H1 local</div>', unsafe_allow_html=True)
+        st.markdown('<h1 class="finance-title">Estacionalidad de ocho mercados</h1>', unsafe_allow_html=True)
         st.markdown(
-            '<p class="finance-subtitle">Seleccione un mercado, revise la cobertura disponible y abra un panel estadístico dedicado al activo.</p>',
+            '<p class="finance-subtitle">Series horarias verificadas de Binance, Yahoo Finance y Dukascopy. Los índices oficiales y sus CFD se mantienen separados y nunca se mezclan.</p>',
             unsafe_allow_html=True,
         )
     with tema_columna:
@@ -785,7 +785,7 @@ def _pantalla_seleccion(activos: dict[str, ActivoConfig]) -> None:
 
     st.markdown(
         '<div class="finance-panel"><div class="finance-panel-title">1. Seleccione una categoría</div>'
-        '<div class="finance-panel-copy">Los activos nunca se mezclan entre categorías. La lista se genera desde activos.json.</div></div>',
+        '<div class="finance-panel-copy">Cada análisis usa exclusivamente un CSV local. Los precios Dukascopy son bid y sus volúmenes no son comparables con Binance o Yahoo.</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -837,7 +837,7 @@ def _cabecera_activo(activo: ActivoConfig, datos: pd.DataFrame, columna_fecha: s
         st.toggle("Modo oscuro", key="modo_oscuro", help="Cambia la apariencia sin alterar los datos.")
     st.markdown(
         "<div class=\"metadata\">"
-        f"<b>{activo.categoria.title()}</b> &nbsp;·&nbsp; {activo.mercado} &nbsp;·&nbsp; "
+        f"<b>{_etiqueta_categoria(activo.categoria)}</b> &nbsp;·&nbsp; {activo.mercado} &nbsp;·&nbsp; "
         f"Sesión declarada: {activo.sesion} &nbsp;·&nbsp; {activo.temporalidad}<br>"
         f"Zona: {activo.zona_horaria} &nbsp;·&nbsp; Timestamp: {activo.tipo_timestamp} &nbsp;·&nbsp; "
         f"Periodo observado: {_texto_fecha(fechas.min())} a {_texto_fecha(fechas.max())}"

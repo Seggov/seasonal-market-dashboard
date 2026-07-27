@@ -38,6 +38,19 @@ def test_firma_cambia_al_modificar_una_entrada(
     assert firma_nueva != firma_inicial
 
 
+def test_firma_cambia_con_version_de_procesamiento(tmp_path: Path) -> None:
+    """Una semantica de normalizacion nueva no reutiliza Parquet anterior."""
+
+    ruta_csv = tmp_path / "datos.csv"
+    ruta_json = tmp_path / "activos.json"
+    ruta_csv.write_text("precio\n100\n", encoding="utf-8")
+    ruta_json.write_text("{}", encoding="utf-8")
+
+    assert generar_firma_cache(ruta_csv, ruta_json, version="2") != generar_firma_cache(
+        ruta_csv, ruta_json, version="3"
+    )
+
+
 def test_roundtrip_parquet(tmp_path: Path) -> None:
     """Recupera sin cambios un DataFrame pequeno guardado en Parquet."""
 

@@ -14,18 +14,12 @@ from .configuracion import ActivoConfig
 
 
 COLUMNAS_OBLIGATORIAS = (
-    "symbol",
-    "timestamp",
-    "timeframe",
+    "timestamp_utc",
     "open",
     "high",
     "low",
     "close",
     "volume",
-    "change_percent",
-    "return_percent",
-    "source_file",
-    "ohlc_valid",
 )
 TOLERANCIA_NEUTRA = 1e-10
 _COLUMNAS_OHLC = ("open", "high", "low", "close")
@@ -156,9 +150,10 @@ def leer_y_validar_datos(
 ) -> ResultadoValidacion:
     """Lee un CSV sin escribirlo y valida cada fila contra su metadata.
 
-    Los duplicados se identifican por ``symbol``, ``timestamp`` y
-    ``timeframe`` conservando deterministicamente la primera aparicion para el
-    analisis. Las apariciones posteriores se incluyen en ``invalidos``.
+    El formato fuente es deliberadamente especifico para los historiales H1
+    locales: ``timestamp_utc,open,high,low,close,volume``. La metadata del
+    activo se deriva de ``activos.json`` y nunca se confia a cada fila del CSV.
+    Los duplicados conservan deterministicamente la primera aparicion.
     """
 
     ruta = Path(ruta_csv).expanduser().resolve() if ruta_csv else activo.archivo
@@ -177,29 +172,34 @@ def leer_y_validar_datos(
         raise ErrorDatos(f"No se pudo leer el CSV {ruta}: {exc}.") from exc
 
     faltantes = [columna for columna in COLUMNAS_OBLIGATORIAS if columna not in originales]
-    if faltantes:
+    adicionales = [columna for columna in originales if columna not in COLUMNAS_OBLIGATORIAS]
+    if faltantes or adicionales:
+        detalles = []
+        if faltantes:
+            detalles.append(f"faltan columnas obligatorias: {', '.join(faltantes)}")
+        if adicionales:
+            detalles.append(f"sobran columnas no admitidas: {', '.join(adicionales)}")
         raise ErrorDatos(
-            f"CSV {ruta}: faltan columnas obligatorias: {', '.join(faltantes)}. "
+            f"CSV {ruta}: {'; '.join(detalles)}. "
             f"Se requieren exactamente: {', '.join(COLUMNAS_OBLIGATORIAS)}."
         )
 
     trabajo = originales.copy(deep=True)
+    trabajo["symbol"] = activo.simbolo
+    trabajo["timestamp"] = trabajo["timestamp_utc"]
+    trabajo["timeframe"] = activo.temporalidad
+    trabajo["change_percent"] = ""
+    trabajo["return_percent"] = ""
+    trabajo["source_file"] = ruta.name
+    trabajo["ohlc_valid"] = "true"
     motivos: list[list[str]] = [[] for _ in range(len(trabajo))]
     filas_vacias = trabajo.loc[:, list(COLUMNAS_OBLIGATORIAS)].apply(
         lambda columna: columna.str.strip().eq("")
     ).all(axis=1)
     _agregar_motivo(motivos, filas_vacias, "fila vacia")
 
-    simbolos = trabajo["symbol"].str.strip()
-    temporalidades = trabajo["timeframe"].str.strip()
-    _agregar_motivo(
-        motivos, simbolos.ne(activo.simbolo), "symbol no coincide con la metadata"
-    )
-    _agregar_motivo(
-        motivos,
-        temporalidades.ne(activo.temporalidad),
-        "timeframe no coincide con la metadata",
-    )
+    simbolos = trabajo["symbol"]
+    temporalidades = trabajo["timeframe"]
 
     convertidos: dict[str, pd.Series] = {}
     for columna in (*_COLUMNAS_OHLC, *_COLUMNAS_NUMERICAS_OPCIONALES):
@@ -232,24 +232,7 @@ def leer_y_validar_datos(
     )
     _agregar_motivo(motivos, incoherente, "OHLC incoherente")
 
-    declaracion_ohlc = trabajo["ohlc_valid"].str.strip().str.lower()
-    valores_booleanos = {
-        "true": True,
-        "false": False,
-        "1": True,
-        "0": False,
-        "si": True,
-        "no": False,
-    }
-    ohlc_declarado = declaracion_ohlc.map(valores_booleanos)
-    _agregar_motivo(
-        motivos, ohlc_declarado.isna(), "ohlc_valid no es booleano"
-    )
-    _agregar_motivo(
-        motivos, ohlc_declarado.eq(False), "ohlc_valid declarado falso"
-    )
-
-    texto_timestamp = trabajo["timestamp"].str.strip()
+    texto_timestamp = trabajo["timestamp_utc"].str.strip()
     if activo.tipo_timestamp == "instante_utc":
         timestamp_utc = pd.to_datetime(
             texto_timestamp, errors="coerce", utc=True, format="mixed"
@@ -314,6 +297,7 @@ def leer_y_validar_datos(
     retornos.loc[apertura_no_cero] = (
         validos.loc[apertura_no_cero, "close"] / apertura_valida.loc[apertura_no_cero] - 1
     ) * 100
+    validos["return_percent"] = retornos
     positivas = int(retornos.gt(TOLERANCIA_NEUTRA).sum())
     negativas = int(retornos.lt(-TOLERANCIA_NEUTRA).sum())
     neutras = int(retornos.abs().le(TOLERANCIA_NEUTRA).sum())

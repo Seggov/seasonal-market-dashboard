@@ -19,18 +19,12 @@ def crear_csv(tmp_path: Path) -> Callable[..., Path]:
         nombre: str = "precios.csv",
     ) -> Path:
         base: dict[str, object] = {
-            "symbol": "PRUEBA",
-            "timestamp": "2024-01-01 00:00:00",
-            "timeframe": "1h",
+            "timestamp_utc": "2024-01-01 00:00:00",
             "open": 100,
             "high": 110,
             "low": 90,
             "close": 105,
             "volume": 1000,
-            "change_percent": "",
-            "return_percent": "",
-            "source_file": nombre,
-            "ohlc_valid": "true",
         }
         registros = []
         for cambios in filas or [{}]:
