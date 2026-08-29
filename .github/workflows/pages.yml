@@ -1,0 +1,104 @@
+name: Panel estático
+
+# Construye el sitio, ejecuta las pruebas de Python y de JavaScript, valida el
+# artefacto y lo publica en GitHub Pages. Solo se despliega desde `main`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez; no se cancela uno en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.13'
+  NODE_VERSION: '22'
+
+jobs:
+  construir:
+    name: Construir y verificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Instalar dependencias de construcción
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Pruebas de Python
+        run: python -m pytest -q
+
+      - name: Generar el sitio estático
+        run: python tools/build_web.py
+
+      - name: Validar el artefacto
+        # Presupuestos, enlaces del manifiesto, JSON estricto y ausencia de
+        # rutas absolutas que romperian bajo el subdirectorio de Pages.
+        run: python tools/check_dist.py
+
+      - name: Pruebas de JavaScript
+        # Comparan las diez vistas calculadas en el navegador contra las que
+        # Python acaba de generar en dist/.
+        run: node --test "web/tests/**/*.test.js"
+
+      - name: Resumir el tamaño del artefacto
+        run: |
+          {
+            echo "### Artefacto de GitHub Pages"
+            echo ""
+            echo "| Métrica | Valor |"
+            echo "| --- | --- |"
+            echo "| Tamaño total | $(du -sh dist | cut -f1) |"
+            echo "| Archivos | $(find dist -type f | wc -l) |"
+            echo "| Activos publicados | $(python -c "import json;print(len(json.load(open('dist/data/manifest.json'))['assets']))") |"
+            echo "| Observaciones | $(python -c "import json;print(f\"{json.load(open('dist/data/manifest.json'))['sourceRowCount']:,}\")") |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configurar GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Subir el artefacto de Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  desplegar:
+    name: Desplegar en GitHub Pages
+    needs: construir
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: despliegue
+        uses: actions/deploy-pages@v4

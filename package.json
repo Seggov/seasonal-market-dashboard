@@ -1,0 +1,16 @@
+{
+  "name": "seasonal-market-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Panel estatico de estacionalidad de mercados para GitHub Pages.",
+  "scripts": {
+    "test": "node --test \"web/tests/**/*.test.js\"",
+    "build": "python tools/build_web.py",
+    "serve": "python tools/serve.py",
+    "check": "python tools/check_dist.py"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}
