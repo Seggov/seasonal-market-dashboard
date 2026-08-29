@@ -1,12 +1,17 @@
 # Seasonal Market Dashboard | Analisis estacional H1
 
-[Repositorio publico](https://github.com/Seggov/seasonal-market-dashboard)
+[Sitio publicado](https://seggov.github.io/seasonal-market-dashboard/) ·
+[Repositorio](https://github.com/Seggov/seasonal-market-dashboard)
 
-Dashboard local construido con Streamlit para explorar patrones temporales en
-**604.111 velas OHLCV H1** de ocho instrumentos financieros. La aplicacion
-valida los datos, conserva su semantica temporal, calcula retornos descriptivos
-y permite analizarlos por mes, semana, dia y hora sin depender de APIs durante
-la ejecucion.
+Panel **estatico** para explorar patrones temporales en **604.111 velas OHLCV
+H1** de ocho instrumentos financieros. Python valida los datos y genera JSON
+versionado durante la construccion; el sitio publicado es HTML, CSS y
+JavaScript vanilla sobre GitHub Pages, **sin backend y sin Python en tiempo de
+ejecucion**.
+
+Todo el calculo interactivo -- sesiones, filtros IQR, matriz dia-hora y eventos
+extremos -- ocurre en el navegador dentro de un Web Worker, sobre los mismos
+datos que valido Python.
 
 > El proyecto es una herramienta de exploracion estadistica. No genera senales,
 > predicciones ni recomendaciones de inversion.
@@ -20,9 +25,10 @@ celda.
 
 ![Matriz de retornos por dia y hora](docs/images/day-hour-matrix.png)
 
-Las capturas corresponden a ejecuciones locales del dashboard. Los resultados
-son descriptivos y pueden incluir periodos parciales, como el mes o ano en
-curso.
+Las capturas corresponden a la version Streamlit original, cuyo comportamiento
+la version estatica reproduce; la disposicion visual cambia, los numeros no.
+Los resultados son descriptivos y pueden incluir periodos parciales, como el mes
+o ano en curso.
 
 ## Por que realice este proyecto
 
@@ -98,62 +104,100 @@ documentados en [`data/FUENTES_DATOS.txt`](data/FUENTES_DATOS.txt).
 
 ## Arquitectura
 
-La aplicacion sigue una arquitectura modular: `app.py` solo inicia Streamlit y
-la logica se distribuye en modulos con responsabilidades concretas.
+La frontera entre construccion y ejecucion es estricta: Python solo interviene
+antes de publicar.
 
 ```mermaid
 flowchart LR
-    catalog["data/activos.json"] --> config["configuracion.py<br/>catalogo y metadata"]
-    csv["CSV OHLCV H1"] --> data["datos.py<br/>lectura y validacion"]
-    config --> data
+    subgraph build["Construccion (Python, GitHub Actions)"]
+        catalog["data/activos.json"] --> config["configuracion.py"]
+        csv["CSV OHLCV H1"] --> data["datos.py<br/>lectura y validacion"]
+        config --> data
+        data --> views["vistas.py<br/>transformaciones puras"]
+        views --> export["exportador.py<br/>contrato JSON v1"]
+        export --> dist["dist/<br/>manifest + report + series"]
+    end
 
-    data --> valid["filas validas<br/>UTC + hora local + retorno"]
-    data --> invalid["filas invalidas<br/>motivos + resumen"]
-
-    valid --> cache["cache.py<br/>Parquet + indice JSON + SHA-256"]
-    cache --> ui["interfaz.py<br/>estado y filtros Streamlit"]
-    invalid --> ui
-
-    ui --> session["filtro de sesion"]
-    session --> analysis["analisis.py<br/>agregacion y estadistica"]
-    analysis --> charts["Plotly + tablas + heatmaps"]
+    subgraph run["Ejecucion (navegador, GitHub Pages)"]
+        dist --> app["app.js<br/>catalogo, tema y rutas"]
+        app --> worker["worker.js<br/>Web Worker"]
+        worker --> core["analytics/*.js<br/>espejo de analisis.py"]
+        core --> charts["Plotly + tablas + mapas de calor"]
+    end
 ```
+
+El nucleo analitico existe dos veces, deliberadamente: en Python para generar
+las vistas predeterminadas y en JavaScript para recalcularlas cuando cambia un
+filtro. Las pruebas de paridad comparan ambas salidas en cada ejecucion de CI,
+de modo que no pueden divergir en silencio.
 
 ### Responsabilidad de cada modulo
 
+**Construccion (Python):**
+
 | Componente | Responsabilidad |
 |---|---|
-| `app.py` | Configura la pagina Streamlit y ejecuta la aplicacion. |
 | `src/configuracion.py` | Lee `activos.json`, valida campos, rutas y zonas IANA, y construye el catalogo. |
 | `src/datos.py` | Lee CSV como texto, valida OHLCV, separa filas invalidas, convierte UTC y calcula retornos por vela. |
-| `src/cache.py` | Firma datos y configuracion, guarda Parquet e indice JSON, y verifica integridad con SHA-256. |
 | `src/analisis.py` | Agrega periodos y calcula estadistica descriptiva, estacionalidad, IQR, matrices y extremos. |
-| `src/interfaz.py` | Coordina Streamlit, sesiones, temas, cache, tablas y visualizaciones Plotly. |
-| `tests/` | Pruebas de configuracion, datos, cache y calculos analiticos. |
-| `.github/workflows/` | CI con lint basico y pytest en Python 3.10, 3.11 y 3.12. |
+| `src/vistas.py` | Transformaciones puras de cada vista, sin capa de presentacion. |
+| `src/exportador.py` | Construye el contrato JSON: manifiesto, informes, series columnares y tablas de zona horaria. |
+| `src/cache.py` | Firma datos y configuracion y verifica integridad con SHA-256. |
+| `tools/build_web.py` | Genera `dist/` completo. |
+| `tools/check_dist.py` | Valida presupuestos, enlaces, JSON estricto y ausencia de rutas absolutas. |
+| `tools/serve.py` | Sirve `dist/` en local bajo el mismo prefijo que GitHub Pages. |
+| `tools/generar_paridad_filtros.py` | Genera las fixturas doradas de filtros no predeterminados. |
+
+**Ejecucion (JavaScript vanilla, sin dependencias de tiempo de ejecucion):**
+
+| Componente | Responsabilidad |
+|---|---|
+| `web/index.html` | Estructura semantica, panel de filtros y contenedor de vistas. |
+| `web/assets/app.css` | Temas claro y oscuro, disposicion responsive. |
+| `web/assets/app.js` | Arranque, catalogo, navegacion, tema y orquestacion del worker. |
+| `web/assets/estado.js` | Estado, enrutado por hash y serializacion de filtros en la URL. |
+| `web/assets/worker.js` | Descarga, decodifica y recalcula las vistas fuera del hilo principal. |
+| `web/assets/analytics/*.js` | Espejo exacto del nucleo analitico de Python. |
+| `web/assets/vistas/*.js` | Renderizado de cada vista. |
+| `web/assets/graficos.js` | Envoltorio de Plotly 2.35.2 vendorizado, sin CDN. |
+| `web/tests/` | Pruebas de paridad Python/JavaScript con `node --test`. |
+| `.github/workflows/pages.yml` | Construye, verifica, valida y despliega en GitHub Pages. |
 
 ### Estructura del repositorio
 
 ```text
 seasonal-market-dashboard/
-|-- app.py
-|-- data/
-|   |-- activos.json
-|   |-- FUENTES_DATOS.txt
-|   `-- ocho CSV H1
-|-- src/
+|-- data/                     fuentes: activos.json y ocho CSV H1
+|-- src/                      nucleo Python de construccion
 |   |-- configuracion.py
 |   |-- datos.py
-|   |-- cache.py
 |   |-- analisis.py
-|   `-- interfaz.py
-|-- tests/
-|-- docs/images/
-|-- cache/
-|-- .github/workflows/
-|-- requirements.txt
+|   |-- vistas.py
+|   |-- exportador.py
+|   `-- cache.py
+|-- web/                      aplicacion estatica (fuente)
+|   |-- index.html
+|   |-- assets/
+|   |   |-- app.css
+|   |   |-- app.js
+|   |   |-- estado.js
+|   |   |-- graficos.js
+|   |   |-- ui.js
+|   |   |-- worker.js
+|   |   |-- analytics/        nucleo analitico en JavaScript
+|   |   |-- vistas/           renderizado de cada vista
+|   |   `-- vendor/           plotly-2.35.2.min.js
+|   `-- tests/                pruebas de paridad (node --test)
+|-- tools/                    build_web, check_dist, serve, fixturas
+|-- tests/                    pruebas de Python + fixturas doradas
+|-- docs/                     PARIDAD.md, CONTRATO_JSON.md, imagenes
+|-- dist/                     artefacto generado (no versionado)
+|-- .github/workflows/pages.yml
+|-- requirements-build.txt
 `-- README.md
 ```
+
+`dist/` **no se versiona**: lo genera GitHub Actions en cada despliegue.
 
 ## Flujo de procesamiento
 
@@ -166,15 +210,39 @@ seasonal-market-dashboard/
 4. Los timestamps se conservan en UTC y se convierten a la zona IANA del
    mercado para el analisis local.
 5. Se calcula el retorno de cada vela desde `open` y `close`.
-6. La aplicacion usa una cache de Streamlit para reruns y una cache persistente
-   Parquet para los datos procesados.
-7. La interfaz aplica el filtro de sesion elegido por el usuario.
-8. `analisis.py` agrega el periodo solicitado y calcula las estadisticas.
-9. `interfaz.py` presenta resultados mediante tablas y graficos Plotly.
+6. `vistas.py` aplica la sesion declarada y calcula las diez vistas
+   predeterminadas.
+7. `exportador.py` las serializa junto con las series fragmentadas por ano y la
+   tabla de transiciones de la zona del mercado.
+8. `tools/build_web.py` escribe `dist/` y `tools/check_dist.py` lo valida.
 
-La aplicacion no realiza llamadas de red en este flujo. El boton **Actualizar
-datos y cache** vuelve a leer los CSV locales y limpia las caches; no descarga
-precios nuevos.
+A partir de aqui **no interviene Python**. En el navegador:
+
+9. `app.js` lee `manifest.json` y pinta el catalogo precalculado.
+10. Al elegir un activo se descargan su informe y sus series por ano; las vistas
+    predeterminadas se pintan de inmediato desde `report.json`.
+11. Cualquier cambio de filtro se envia al Web Worker, que recalcula las nueve
+    cargas analiticas sobre los indices de la serie ya decodificada.
+
+No hay llamadas de red a servicios de mercado en ningun punto del flujo.
+**Recargar version publicada** vuelve a pedir el manifiesto y **Limpiar cache
+local** vacia lo que la aplicacion haya guardado en el navegador; ninguno de los
+dos descarga precios nuevos.
+
+### Actualizacion de los datos
+
+El repositorio versiona *snapshots* ya preparados y **no incluye un pipeline de
+descarga** desde Binance, Yahoo Finance o Dukascopy. Para publicar datos nuevos
+hay que reemplazar los CSV de `data/`, volver a construir y desplegar.
+
+Una actualizacion automatica futura necesitaria dos piezas que hoy no existen:
+un pipeline de descarga y normalizacion, y un workflow programado que lo
+ejecute y vuelva a desplegar. En ningun caso deben usarse secretos en el
+frontend: las credenciales de un proveedor solo tendrian sentido en el workflow.
+
+La fecha que muestra el panel es `generatedAt` del manifiesto, es decir **cuando
+se genero el artefacto**, no la hora del navegador ni la ultima vela del
+mercado.
 
 ## Contrato y validacion OHLCV
 
@@ -267,20 +335,54 @@ interfaz.
 
 | Area | Tecnologia |
 |---|---|
-| Interfaz | Streamlit |
-| Datos | Pandas, NumPy |
-| Visualizacion | Plotly |
-| Cache | PyArrow, Parquet, JSON, SHA-256 |
-| Zonas horarias | `zoneinfo`, `tzdata` |
-| Pruebas | Pytest |
+| Interfaz | HTML semantico, CSS responsive, JavaScript vanilla (ES Modules) |
+| Calculo en cliente | Web Worker, arrays tipados |
+| Visualizacion | Plotly.js 2.35.2 vendorizado (sin CDN) |
+| Construccion | Python, Pandas, NumPy |
+| Contrato de datos | JSON estricto versionado, columnar y fragmentado por ano |
+| Zonas horarias | `zoneinfo`, `tzdata` y tabla de transiciones publicada |
+| Pruebas | Pytest y el ejecutor nativo de Node (`node --test`) |
+| Alojamiento | GitHub Pages |
 | Integracion continua | GitHub Actions |
+
+Sin React, Vue, Angular ni Streamlit en tiempo de ejecucion. Sin dependencias de
+npm y sin peticiones a terceros: todos los recursos se sirven desde el propio
+sitio.
+
+## Despliegue
+
+El sitio se publica automaticamente en
+<https://seggov.github.io/seasonal-market-dashboard/> mediante
+`.github/workflows/pages.yml`:
+
+1. Push a `main` (o ejecucion manual desde la pestana **Actions**).
+2. El workflow instala Python 3.13 y Node 22, ejecuta las pruebas de Python,
+   genera `dist/`, lo valida con `check_dist.py` y ejecuta las pruebas de
+   paridad de JavaScript contra los datos recien generados.
+3. Sube el artefacto con `actions/upload-pages-artifact` y despliega con
+   `actions/deploy-pages`, en el entorno `github-pages`.
+
+Los pull requests ejecutan las mismas comprobaciones pero **no despliegan**.
+
+### Configuracion necesaria una sola vez
+
+En **Settings → Pages** del repositorio, la fuente (*Source*) debe estar en
+**GitHub Actions**, no en una rama. Sin ese ajuste el workflow construye y
+verifica correctamente, pero el paso de despliegue falla.
+
+### Rutas y subdirectorio
+
+El sitio vive bajo `/seasonal-market-dashboard/`, asi que **todas** las
+referencias a HTML, CSS, JavaScript y JSON son relativas; no existe ninguna que
+empiece por `/`. `tools/check_dist.py` falla la construccion si aparece una.
+La navegacion usa *hash routing* (`#/BTCUSDT/matriz?metrica=median`) para no
+depender de reescrituras del servidor, y el build genera `.nojekyll`.
 
 ## Instalacion
 
-El codigo requiere Python 3.10 o superior. La integracion continua verifica
-Python **3.10, 3.11 y 3.12**.
-
-Desde PowerShell:
+Para **construir** el sitio hace falta Python 3.10 o superior (CI fija 3.13) y,
+para ejecutar las pruebas de JavaScript, Node 20.11 o superior (CI fija 22).
+Para **ver** el sitio publicado solo hace falta un navegador moderno.
 
 ```powershell
 git clone https://github.com/Seggov/seasonal-market-dashboard.git
@@ -288,36 +390,74 @@ Set-Location "seasonal-market-dashboard"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-build.txt
 ```
 
-## Ejecucion
+No hay dependencias de npm: Plotly esta vendorizado en `web/assets/vendor/` con
+version fijada y el resto es JavaScript vanilla.
+
+## Construccion y desarrollo local
 
 ```powershell
-python -m streamlit run app.py
+python tools/build_web.py          # genera dist/ completo
+python tools/check_dist.py         # valida presupuestos, enlaces y rutas
+python tools/serve.py              # sirve dist/ en http://127.0.0.1:8000/seasonal-market-dashboard/
 ```
 
-La aplicacion necesita permisos de escritura en `cache/` para la cache
-persistente y en la raiz para `finance.log`.
+`tools/serve.py` sirve el sitio bajo **el mismo prefijo que GitHub Pages**, que
+es la unica forma fiable de detectar una ruta absoluta que solo funcionaria en
+la raiz. Con `--raiz` se comprueba tambien que funciona servido en `/`.
+
+> No abra `index.html` con `file://`: los modulos ES, `fetch` y los Web Workers
+> exigen un origen HTTP real.
+
+Opciones utiles durante el desarrollo:
+
+```powershell
+python tools/build_web.py --activos BTCUSDT SP500   # solo dos activos, mas rapido
+python tools/build_web.py --solo-datos              # regenera dist/data sin recopiar la app
+python tools/serve.py --raiz --abrir                # sirve en / y abre el navegador
+```
+
+La generacion completa tarda **menos de dos minutos** y produce unos **16 MB**
+de datos, muy por debajo del limite de 1 GB de GitHub Pages.
 
 ## Pruebas y CI
 
 ```powershell
-python -m pytest -q
+python -m pytest -q                        # nucleo Python
+node --test "web/tests/**/*.test.js"       # paridad Python/JavaScript
 ```
 
-La suite incluye 31 casos que cubren:
+Las pruebas de JavaScript necesitan `dist/` generado; si no existe, se saltan
+con un aviso en lugar de fallar.
+
+**Pruebas de Python (101 casos):**
 
 - configuraciones validas, invalidas y modo tolerante;
 - contrato CSV, OHLC, duplicados, retornos y metadata derivada;
-- conversion de zona horaria y cambio DST;
+- zonas horarias, DST de primavera y otono, semanas ISO que cruzan de ano,
+  velas en `HH:30` y sesiones que cruzan medianoche;
 - cobertura `24/7` y `24/5`;
 - firmas, roundtrip e invalidacion de cache corrupta;
-- agregacion de retornos, estacionalidad, IQR y matriz dia-hora.
+- transformaciones de vista extraidas de la capa de presentacion;
+- contrato JSON: saneamiento estricto, codificacion exacta de precios,
+  fragmentado por ano y ausencia de rutas absolutas.
 
-GitHub Actions ejecuta lint basico y pytest en Ubuntu para Python 3.10, 3.11 y
-3.12. La interfaz Streamlit y las interacciones Plotly no tienen pruebas de
-navegador end-to-end.
+**Pruebas de JavaScript:**
+
+- `web/tests/paridad.test.js` recalcula las diez vistas de los ocho activos y
+  las compara, campo a campo, con las que genero Python en `dist/`;
+- `web/tests/filtros.test.js` compara catorce configuraciones de filtros no
+  predeterminados por activo mediante un digesto numerico sensible al orden.
+
+La tolerancia aceptada esta documentada en `docs/PARIDAD.md` seccion 2.5:
+**1e-9 absoluta o 1e-12 relativa** para valores en puntos porcentuales, y
+exactitud binaria para precios, conteos, marcas de tiempo y banderas.
+
+GitHub Actions ejecuta todo lo anterior en cada push y pull request a `main`.
+No hay pruebas de navegador end-to-end automatizadas; la verificacion de las
+diez vistas en escritorio y movil se realiza de forma manual antes de publicar.
 
 ## Como agregar un activo
 
@@ -347,8 +487,59 @@ si se incorpora un noveno activo al snapshot oficial.
 El proyecto versiona snapshots ya preparados. No incluye el pipeline de
 descarga o regeneracion desde Binance, Yahoo Finance o Dukascopy.
 
+## Estructura de los datos publicados
+
+El contrato completo esta en [`docs/CONTRATO_JSON.md`](docs/CONTRATO_JSON.md).
+Resumen:
+
+```text
+dist/data/
+|-- manifest.json                       catalogo, versiones, hash y zonas horarias
+|-- BTCUSDT/
+|   |-- report.<hash>.json              calidad + las diez vistas predeterminadas
+|   |-- series-2017.<hash>.json         velas del ano, columnares
+|   `-- ...
+`-- ...
+```
+
+- **`schemaVersion`** actual: `1`. Cada archivo la declara.
+- **JSON estricto**: no se emiten `NaN` ni infinitos; todo valor no finito viaja
+  como `null`.
+- **Columnar y fragmentado por ano**: las 604.111 velas nunca se publican en un
+  unico archivo. Solo se descarga el activo seleccionado.
+- **Precios exactos**: se codifican como enteros escalados con deltas, y la
+  escala solo se acepta tras verificar que `round(valor*escala)/escala == valor`
+  para cada valor y que el entero cabe por debajo de `2^53`. La reconstruccion
+  en el navegador es **bit a bit identica** al doble que obtuvo Python.
+- **Tiempo sin ambiguedad**: cada marca viaja como instante absoluto y epoch
+  local. El manifiesto incluye la tabla de transiciones de la zona IANA del
+  mercado, de modo que un dia con cambio de horario mide correctamente 23 o 25
+  horas. **La zona horaria del navegador nunca interviene.**
+- **Invalidacion de cache**: cada archivo lleva un hash de contenido en el
+  nombre; solo `manifest.json` se pide con `cache: "no-cache"`.
+
+## Diferencias conocidas respecto a la version Streamlit
+
+La migracion busco **paridad primero**: `docs/PARIDAD.md` fija el comportamiento
+efectivo del codigo original, incluidas sus ambiguedades (A-1 a A-12), y las
+pruebas verifican que se conservan. Las unicas desviaciones deliberadas son las
+que impone un sitio sin backend:
+
+| Antes | Ahora | Motivo |
+|---|---|---|
+| Boton **Actualizar datos y cache** | **Recargar version publicada** y **Limpiar cache local** | GitHub Pages no ejecuta Python; no hay nada que reprocesar en vivo. |
+| Catalogo validado en cada carga | Catalogo precalculado en `manifest.json` | Evita revalidar ocho CSV en el navegador. |
+| Tabla completa de filas invalidas | Conteos y motivos agregados en `report.json` | El detalle fila a fila no viaja al cliente. |
+| Estado en `st.session_state` | Estado en la URL (`#/SIMBOLO/vista?filtros`) | Permite compartir una vista filtrada por enlace. |
+
+Ademas, la version estatica **anade** una tabla de estadisticas descriptivas
+bajo cada vista estacional y una tabla de valores bajo la matriz, que en
+Streamlit solo existian como grafico.
+
 ## Limitaciones
 
+- El sitio no descarga datos: publica un snapshot generado en la construccion.
+- No hay pruebas de navegador end-to-end automatizadas.
 - Las coberturas historicas y los tamanos de muestra difieren entre activos.
 - No se implementan calendarios bursatiles, festivos ni cierres anticipados.
 - Los periodos incompletos se marcan, pero siguen participando en promedios y
