@@ -6,9 +6,18 @@
  */
 
 import { vistaCalidad, vistaResumen } from './vistas/resumen.js';
+import {
+  vistaDiaSemana, vistaDiaria, vistaHoraria, vistaMensual, vistaPeriodo, vistaSemanal,
+} from './vistas/estacionales.js';
 
 /** @type {Record<string, (contexto: object) => Node>} */
 export const RENDERIZADORES = {
   resumen: vistaResumen,
   calidad: vistaCalidad,
+  periodo: vistaPeriodo,
+  mensual: vistaMensual,
+  semanal: vistaSemanal,
+  diaSemana: vistaDiaSemana,
+  diaria: vistaDiaria,
+  horaria: vistaHoraria,
 };
