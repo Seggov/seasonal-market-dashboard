@@ -19,6 +19,7 @@ import {
   metricas, tabla, textoEntero, textoFecha, textoNumero, vaciar,
 } from './ui.js';
 import { repintar } from './graficos.js';
+import { ZonaMercado } from './analytics/tz.js';
 import { RENDERIZADORES } from './vistas-dom.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -225,6 +226,9 @@ async function prepararActivo(simbolo) {
     if (!respuesta.ok) throw new Error(`No se pudo descargar el informe de ${simbolo}.`);
     estado.informe = await respuesta.json();
     estado.activo = activo;
+    // La zona del mercado se reconstruye tambien en el hilo principal para
+    // poder formatear fechas sin consultar la zona horaria del navegador.
+    estado.zona = new ZonaMercado(activo.tz);
     await pedir('cargar', {
       activo,
       urls: Object.values(activo.series).map((relativo) => urlBase(`data/${relativo}`)),
@@ -276,6 +280,7 @@ function pintarVista() {
       vistas: estado.vistas,
       informe: estado.informe,
       activo: estado.activo,
+      zona: estado.zona,
       filtros: estado.filtros,
       alCambiarFiltros: actualizarFiltros,
     }));

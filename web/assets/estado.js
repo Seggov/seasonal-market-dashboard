@@ -42,6 +42,7 @@ export const estado = {
   vista: 'resumen',
   activo: null,
   informe: null,
+  zona: null,
   filtros: filtrosPorDefecto(),
   vistas: null,
   calculando: false,
