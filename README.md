@@ -67,7 +67,11 @@ La interfaz incluye diez vistas:
 10. **Eventos extremos:** mejores, peores o movimientos sobre un umbral.
 
 Tambien permite cambiar entre tema claro y oscuro, escoger el activo, aplicar
-sesiones declaradas, observadas o personalizadas, y regenerar la cache local.
+sesiones declaradas, observadas o personalizadas, recargar la version publicada
+y limpiar la cache que la aplicacion guarda en el navegador.
+
+Cada vista es enlazable: el activo, la vista y los filtros viajan en el hash de
+la URL, por ejemplo `#/XAUUSD/matriz?metrica=median&min=20`.
 
 ## Mas capturas
 
@@ -193,7 +197,7 @@ seasonal-market-dashboard/
 |-- docs/                     PARIDAD.md, CONTRATO_JSON.md, imagenes
 |-- dist/                     artefacto generado (no versionado)
 |-- .github/workflows/pages.yml
-|-- requirements-build.txt
+|-- requirements.txt
 `-- README.md
 ```
 
@@ -317,19 +321,23 @@ debe describirse como una serie perfectamente continua.
 
 ## Cache e integridad
 
-La cache persistente combina:
+Existen dos mecanismos distintos, y conviene no confundirlos.
 
-- ruta absoluta, tamano, fecha de modificacion y SHA-256 del CSV;
-- la misma identidad para `activos.json`;
-- una version explicita del procesamiento.
+**Invalidacion del sitio publicado.** Cada `report.json` y cada fragmento de
+serie lleva un **hash de contenido en el nombre**, asi que un archivo nuevo
+nunca reutiliza la respuesta cacheada del anterior. `manifest.json` es el unico
+recurso sin hash y se pide con `cache: "no-cache"`. El manifiesto declara
+ademas `contentHash` y `processingVersion` del conjunto completo.
 
-Cada entrada contiene un Parquet y un indice JSON con hash, filas, columnas y
-metadata. Las escrituras usan archivos temporales y reemplazo atomico. Una
-pareja incompleta, corrupta o incompatible se invalida automaticamente.
+**Cache Parquet de construccion (`src/cache.py`).** Firma el CSV y
+`activos.json` por ruta, tamano, fecha de modificacion y SHA-256, mas una
+version explicita de procesamiento; escribe con archivos temporales y
+reemplazo atomico, e invalida cualquier pareja incompleta o corrupta.
 
-Una firma nueva evita reutilizar datos antiguos, pero no elimina todos los
-archivos historicos de cache. La limpieza completa se realiza desde la
-interfaz.
+> Este segundo mecanismo existia para acelerar los *reruns* de Streamlit. El
+> generador estatico lee cada CSV una sola vez, asi que ya **no forma parte de
+> la ruta de construccion**. El modulo se conserva con su cobertura de pruebas
+> intacta; retirarlo seria un cambio independiente de esta migracion.
 
 ## Tecnologias
 
@@ -390,7 +398,7 @@ Set-Location "seasonal-market-dashboard"
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements-build.txt
+python -m pip install -r requirements.txt
 ```
 
 No hay dependencias de npm: Plotly esta vendorizado en `web/assets/vendor/` con

@@ -1,7 +1,13 @@
-streamlit>=1.50,<2
+# Dependencias de CONSTRUCCION y pruebas.
+#
+# El sitio publicado es HTML, CSS y JavaScript estaticos: no ejecuta Python ni
+# instala nada en el navegador. Estas bibliotecas solo intervienen al generar
+# dist/, en local y en GitHub Actions.
 pandas>=2.2,<4
 numpy>=2.0,<3
-plotly>=5.24,<7
-pyarrow>=18,<24
 pytest>=8.3,<10
 tzdata>=2025.1
+
+# Requerida por src/cache.py, que conserva su cobertura de pruebas aunque el
+# generador estatico ya no necesite la cache Parquet.
+pyarrow>=18,<24
