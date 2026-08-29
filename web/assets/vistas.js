@@ -26,12 +26,12 @@ export const VISTAS = [
 const bloque = (hijos) => elemento('div', { clase: 'view__body' }, [].concat(hijos));
 
 /** Curvas pequeñas, una por clave, omitiendo las que no tienen forma. */
-function curvas(lista, etiquetas, desplazamiento, titulo) {
+function curvas(lista, etiquetas, desplazamiento) {
   const tarjetas = etiquetas.map((nombre, indice) => {
     const curva = lista.find((c) => c.clave === indice + desplazamiento);
     if (!curva || curva.retorno.filter(Number.isFinite).length < 2) return null;
     const eje = curva.dia_mes ?? curva.hora;
-    return linea(eje, curva.retorno, { titulo: `${titulo} · ${nombre}`, altura: 190 });
+    return linea(eje, curva.retorno, { titulo: nombre, altura: 150, compacta: true });
   }).filter(Boolean);
   return tarjetas.length ? rejilla(tarjetas, true) : vacio('SIN DATOS SUFICIENTES');
 }
@@ -60,7 +60,7 @@ function periodo({ vistas }) {
   const { años, meses } = datos.pivote;
   return bloque([
     barras(datos.anual.map((f) => String(f['año'])), datos.anual.map((f) => f.returnPercent),
-      { titulo: 'Retorno por año', altura: 320 }),
+      { titulo: 'Retorno por año', altura: 300 }),
     mapaCalor(
       { x: MESES, y: años.map(String), z: meses },
       { titulo: 'Retorno por año y mes', altura: Math.max(260, 60 + años.length * 22) },
@@ -75,7 +75,7 @@ function mensual({ vistas }) {
     barras(datos.estacional.map((f) => MESES[f.numero_mes - 1]),
       datos.estacional.map((f) => f.promedio),
       { titulo: 'Retorno medio por mes', altura: 300 }),
-    curvas(datos.curvas, MESES, 1, 'Acumulado'),
+    curvas(datos.curvas, MESES, 1),
     nota('Cada curva promedia el retorno acumulado desde la primera apertura del mes, por día del mes y a través de todos los años.'),
   ]);
 }
@@ -100,7 +100,7 @@ function diaSemana({ vistas }) {
       { titulo: 'Retorno medio por día de la semana', altura: 300 }),
   ];
   if (datos.trayectorias.length) {
-    hijos.push(curvas(datos.trayectorias, DIAS, 0, 'Intradía'));
+    hijos.push(curvas(datos.trayectorias, DIAS, 0));
     hijos.push(nota('Retorno acumulado medio respecto a la primera apertura de cada día.'));
   }
   return bloque(hijos);
@@ -130,7 +130,7 @@ function horaria({ vistas }) {
     barras(datos.estacional.map((f) => `${String(f.hora).padStart(2, '0')}`),
       datos.estacional.map((f) => f.promedio),
       { titulo: 'Retorno medio por hora', altura: 300, etiquetas: false }),
-    curvas(datos.curvas, DIAS, 0, 'Horario'),
+    curvas(datos.curvas, DIAS, 0),
   ]);
 }
 

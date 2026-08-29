@@ -1,6 +1,10 @@
 /**
  * Envoltorio de Plotly con el aspecto del terminal.
  *
+ * Cada grafico se entrega dentro de una tarjeta con cabecera propia en HTML, no
+ * como titulo dibujado dentro del SVG: asi la tipografia es la misma que la del
+ * resto de la pagina y el lienzo aprovecha toda su altura.
+ *
  * Plotly 2.35.2 va vendorizado, sin CDN. Los ejes temporales reciben la hora de
  * pared del mercado, nunca la del navegador.
  */
@@ -10,7 +14,7 @@ import { elemento } from './ui.js';
 export const COLOR = {
   fondo: '#1e222d',
   borde: '#2a2e39',
-  rejilla: '#252a36',
+  rejilla: '#242833',
   texto: '#d1d4dc',
   tenue: '#787b86',
   acento: '#2962ff',
@@ -52,88 +56,134 @@ window.addEventListener('resize', () => {
   }, 120);
 });
 
-function base(titulo, ejeY, altura) {
+/** Guias verticales al pasar el cursor, como en un terminal de mercado. */
+function guias(eje) {
   return {
-    title: {
-      text: titulo ? titulo.toUpperCase() : '',
-      font: { size: 11, color: COLOR.tenue, family: FUENTE },
-      x: 0, xanchor: 'left', y: 1, yanchor: 'top', pad: { l: 6, t: 10 },
-    },
+    ...eje,
+    showspikes: true,
+    spikemode: 'across',
+    spikesnap: 'cursor',
+    spikethickness: 1,
+    spikedash: 'dot',
+    spikecolor: '#4a5162',
+  };
+}
+
+function base(ejeY, altura) {
+  return {
     paper_bgcolor: COLOR.fondo,
     plot_bgcolor: COLOR.fondo,
     font: { family: FUENTE, color: COLOR.tenue, size: 10 },
-    margin: { l: 52, r: 14, t: titulo ? 34 : 12, b: 34 },
+    margin: { l: 50, r: 14, t: 14, b: 30 },
     height: altura,
     hovermode: 'x unified',
     showlegend: false,
-    xaxis: {
-      showgrid: false, linecolor: COLOR.borde, zeroline: false,
-      tickfont: { color: COLOR.tenue, size: 10 }, automargin: true,
-    },
+    xaxis: guias({
+      showgrid: false,
+      linecolor: COLOR.borde,
+      zeroline: false,
+      tickfont: { color: COLOR.tenue, size: 10 },
+      automargin: true,
+    }),
     yaxis: {
       title: ejeY ? { text: ejeY, font: { color: COLOR.tenue, size: 10 } } : undefined,
-      gridcolor: COLOR.rejilla, zerolinecolor: COLOR.borde, zerolinewidth: 1,
+      gridcolor: COLOR.rejilla,
+      zerolinecolor: '#3d4452',
+      zerolinewidth: 1,
       tickfont: { color: COLOR.tenue, size: 10 },
     },
     hoverlabel: {
-      bgcolor: '#131722', bordercolor: COLOR.borde,
+      bgcolor: '#0f1319',
+      bordercolor: '#3d4452',
       font: { color: COLOR.texto, family: FUENTE, size: 11 },
+      align: 'left',
     },
+    transition: { duration: 0 },
   };
 }
 
 /**
- * Crea el contenedor y dibuja en cuanto esta insertado en el documento.
+ * Espera a que el lienzo tenga un ancho real antes de dibujar.
  *
- * El nodo se devuelve antes de que quien lo pide lo inserte, asi que dibujar de
- * inmediato mediria un elemento desconectado y Plotly caeria a su ancho por
- * defecto. Se espera a un macrotask -- para entonces el DOM ya esta montado --
- * y se reajusta una vez mas por si el ancho todavia no era el definitivo.
+ * El nodo se devuelve antes de que quien lo pide lo inserte en el documento, y
+ * Plotly fija el tamano del SVG en el momento del `newPlot`: medir un elemento
+ * todavia desconectado, o con ancho cero, deja el grafico encogido para
+ * siempre. Sondear el ancho es fiable en cualquier entorno, a diferencia de
+ * `requestAnimationFrame`, que no corre si la pestana no compone fotogramas.
  */
-function lienzo(dibujar, altura) {
-  const nodo = elemento('div', { clase: 'chart panel', style: `min-height:${altura}px` });
+function esperarAncho(nodo, intentos = 60) {
+  return new Promise((listo) => {
+    let restantes = intentos;
+    const mirar = () => {
+      if (nodo.isConnected && nodo.clientWidth > 0) listo(true);
+      else if ((restantes -= 1) <= 0) listo(false);
+      else setTimeout(mirar, 16);
+    };
+    mirar();
+  });
+}
+
+/**
+ * Tarjeta con cabecera y lienzo.
+ */
+function tarjeta(dibujar, altura, titulo, unidad) {
+  const lienzo = elemento('div', { clase: 'chart', style: `min-height:${altura}px` });
+  const nodo = elemento('figure', { clase: 'card' }, [
+    titulo ? elemento('figcaption', { clase: 'card__head' }, [
+      elemento('span', { clase: 'card__title', texto: titulo }),
+      unidad ? elemento('span', { clase: 'card__unit', texto: unidad }) : null,
+    ]) : null,
+    lienzo,
+  ]);
   listo()
-    .then((Plotly) => new Promise((seguir) => { setTimeout(() => seguir(Plotly), 0); }))
-    .then((Plotly) => {
-      dibujar(Plotly, nodo);
-      observador?.observe(nodo);
-      setTimeout(() => reajustar(nodo), 0);
+    .then(async (Plotly) => {
+      await esperarAncho(lienzo);
+      dibujar(Plotly, lienzo);
+      observador?.observe(lienzo);
+      setTimeout(() => reajustar(lienzo), 0);
     })
     .catch((e) => { nodo.className = 'empty empty--error'; nodo.textContent = e.message; });
   return nodo;
 }
 
 /** Barras con color por signo. */
-export function barras(x, y, { titulo, ejeY = '%', altura = 300, etiquetas = true } = {}) {
-  return lienzo((Plotly, nodo) => {
-    const l = base(titulo, ejeY, altura);
-    l.bargap = 0.25;
+export function barras(x, y, { titulo, unidad = '%', altura = 280, etiquetas = true } = {}) {
+  return tarjeta((Plotly, nodo) => {
+    const l = base('', altura);
+    l.bargap = 0.3;
     Plotly.newPlot(nodo, [{
       type: 'bar',
       x,
       y,
-      marker: { color: y.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)) },
+      marker: {
+        color: y.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)),
+        line: { width: 0 },
+      },
       text: etiquetas ? y.map((v) => (Number.isFinite(v) ? v.toFixed(2) : '')) : undefined,
       textposition: 'outside',
       textfont: { size: 9, color: COLOR.tenue },
       cliponaxis: false,
-      hovertemplate: '%{x}  %{y:.2f}%<extra></extra>',
+      hovertemplate: '%{y:.2f}%<extra></extra>',
     }], l, CONFIG);
-  }, altura);
+  }, altura, titulo, unidad);
 }
 
 /** Barras horizontales, para rankings. */
-export function barrasH(y, x, { titulo, altura = 380 } = {}) {
-  return lienzo((Plotly, nodo) => {
-    const l = base(titulo, '', altura);
-    l.margin.l = 120;
+export function barrasH(y, x, { titulo, unidad = '%', altura = 380 } = {}) {
+  return tarjeta((Plotly, nodo) => {
+    const l = base('', altura);
+    l.margin.l = 116;
     l.hovermode = 'closest';
     l.yaxis.autorange = 'reversed';
     l.yaxis.gridcolor = 'rgba(0,0,0,0)';
-    l.xaxis.gridcolor = COLOR.rejilla;
-    l.xaxis.showgrid = true;
-    l.xaxis.zeroline = true;
-    l.xaxis.zerolinecolor = COLOR.borde;
+    l.xaxis = {
+      ...l.xaxis,
+      showspikes: false,
+      showgrid: true,
+      gridcolor: COLOR.rejilla,
+      zeroline: true,
+      zerolinecolor: '#3d4452',
+    };
     Plotly.newPlot(nodo, [{
       type: 'bar',
       orientation: 'h',
@@ -142,21 +192,24 @@ export function barrasH(y, x, { titulo, altura = 380 } = {}) {
       marker: { color: x.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)) },
       text: x.map((v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '')),
       textposition: 'outside',
-      textfont: { size: 9, color: COLOR.tenue },
+      textfont: { size: 10, color: COLOR.texto },
       cliponaxis: false,
-      hovertemplate: '%{y}  %{x:.2f}%<extra></extra>',
+      hovertemplate: '%{y}   %{x:.2f}%<extra></extra>',
     }], l, CONFIG);
-  }, altura);
+  }, altura, titulo, unidad);
 }
 
-/** Linea con marcadores y referencia opcional. */
-export function linea(x, y, { titulo, ejeY = '%', altura = 230, referencia = null } = {}) {
-  return lienzo((Plotly, nodo) => {
-    const l = base(titulo, ejeY, altura);
+/** Linea con area y referencia opcional. */
+export function linea(x, y, {
+  titulo, unidad = '%', altura = 210, referencia = null, compacta = false,
+} = {}) {
+  return tarjeta((Plotly, nodo) => {
+    const l = base('', altura);
+    if (compacta) { l.margin.l = 38; l.margin.b = 24; l.margin.t = 10; }
     if (referencia !== null && Number.isFinite(referencia)) {
       l.shapes = [{
         type: 'line', xref: 'paper', x0: 0, x1: 1, y0: referencia, y1: referencia,
-        line: { color: COLOR.acento, width: 1, dash: 'dot' },
+        line: { color: '#f2c14e', width: 1, dash: 'dot' },
       }];
     }
     Plotly.newPlot(nodo, [{
@@ -164,25 +217,30 @@ export function linea(x, y, { titulo, ejeY = '%', altura = 230, referencia = nul
       mode: 'lines',
       x,
       y,
-      line: { color: COLOR.acento, width: 1.6, shape: 'spline', smoothing: 0.4 },
+      line: { color: COLOR.acento, width: 1.8, shape: 'spline', smoothing: 0.5 },
       connectgaps: false,
       fill: 'tozeroy',
-      fillcolor: 'rgba(41,98,255,.08)',
-      hovertemplate: '%{x}  %{y:.2f}%<extra></extra>',
+      fillcolor: 'rgba(41,98,255,.10)',
+      hovertemplate: '%{y:.2f}%<extra></extra>',
     }], l, CONFIG);
-  }, altura);
+  }, altura, titulo, unidad);
 }
 
 /** Velas OHLC. */
-export function velas(datos, { titulo = 'Precio', altura = 400 } = {}) {
-  return lienzo((Plotly, nodo) => {
-    const l = base(titulo, '', altura);
+export function velas(datos, { titulo = 'Precio', unidad = '', altura = 400 } = {}) {
+  return tarjeta((Plotly, nodo) => {
+    const l = base('', altura);
     l.xaxis.type = 'date';
     l.xaxis.rangeslider = { visible: false };
     l.hovermode = 'x';
     l.yaxis.side = 'right';
-    l.margin.l = 14;
-    l.margin.r = 58;
+    l.yaxis.showspikes = true;
+    l.yaxis.spikemode = 'across';
+    l.yaxis.spikethickness = 1;
+    l.yaxis.spikedash = 'dot';
+    l.yaxis.spikecolor = '#4a5162';
+    l.margin.l = 10;
+    l.margin.r = 60;
     Plotly.newPlot(nodo, [{
       type: 'candlestick',
       x: datos.x,
@@ -193,7 +251,7 @@ export function velas(datos, { titulo = 'Precio', altura = 400 } = {}) {
       increasing: { line: { color: COLOR.sube, width: 1 }, fillcolor: COLOR.sube },
       decreasing: { line: { color: COLOR.baja, width: 1 }, fillcolor: COLOR.baja },
     }], l, CONFIG);
-  }, altura);
+  }, altura, titulo, unidad);
 }
 
 /**
@@ -201,38 +259,61 @@ export function velas(datos, { titulo = 'Precio', altura = 400 } = {}) {
  * `centro` a `null` produce una escala secuencial.
  */
 export function mapaCalor(datos, {
-  titulo, altura = 420, centro = 0, sufijo = '%', decimales = 2,
-  etiquetas = true, escalaVisible = true, ejeY = '',
+  titulo, unidad = '%', altura = 420, centro = 0, decimales = 2,
+  etiquetas = true, escalaVisible = true, tamanoTexto = 10,
 } = {}) {
-  return lienzo((Plotly, nodo) => {
-    const l = base(titulo, ejeY, altura);
+  return tarjeta((Plotly, nodo) => {
+    const l = base('', altura);
     l.hovermode = 'closest';
-    l.xaxis.side = 'top';
+    l.margin = { l: 52, r: escalaVisible ? 8 : 14, t: 22, b: 8 };
+    l.xaxis = {
+      ...l.xaxis,
+      showspikes: false,
+      side: 'top',
+      linecolor: 'rgba(0,0,0,0)',
+      tickfont: { color: COLOR.texto, size: 10 },
+      ticks: '',
+    };
     // Con las categorias del eje X arriba, el eje Y se lee de arriba abajo:
     // la primera fila del array queda en la parte superior.
-    l.yaxis.autorange = 'reversed';
-    l.yaxis.gridcolor = 'rgba(0,0,0,0)';
+    l.yaxis = {
+      autorange: 'reversed',
+      gridcolor: 'rgba(0,0,0,0)',
+      linecolor: 'rgba(0,0,0,0)',
+      zeroline: false,
+      ticks: '',
+      tickfont: { color: COLOR.tenue, size: 10 },
+    };
     const escala = centro === null
-      ? [[0, '#131722'], [1, COLOR.acento]]
-      : [[0, COLOR.baja], [0.5, '#1b1f2b'], [1, COLOR.sube]];
+      ? [[0, '#161a23'], [1, COLOR.acento]]
+      : [
+        [0, '#c0392b'], [0.25, '#7d3038'], [0.5, '#1c2029'],
+        [0.75, '#1f6b62'], [1, '#1fae9a'],
+      ];
     Plotly.newPlot(nodo, [{
       type: 'heatmap',
       x: datos.x,
       y: datos.y,
       z: datos.z,
       text: etiquetas ? datos.z.map((f) => f.map(
-        (v) => (Number.isFinite(v) ? v.toFixed(decimales) : ''),
+        (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(decimales)}` : ''),
       )) : undefined,
       texttemplate: etiquetas ? '%{text}' : undefined,
-      textfont: { size: 9, family: FUENTE },
+      textfont: { size: tamanoTexto, family: FUENTE, color: '#e6e9ef' },
       colorscale: escala,
       zmid: centro === null ? undefined : centro,
       showscale: escalaVisible,
-      colorbar: { thickness: 8, outlinewidth: 0, tickfont: { size: 9, color: COLOR.tenue } },
-      xgap: 1,
-      ygap: 1,
+      colorbar: {
+        thickness: 6,
+        outlinewidth: 0,
+        len: 0.9,
+        tickfont: { size: 9, color: COLOR.tenue },
+        ticks: '',
+      },
+      xgap: 2,
+      ygap: 2,
       hoverongaps: false,
-      hovertemplate: `%{y} · %{x}  %{z:.${decimales}f}${sufijo}<extra></extra>`,
+      hovertemplate: `%{y} · %{x}   %{z:.${decimales}f}${unidad}<extra></extra>`,
     }], l, CONFIG);
-  }, altura);
+  }, altura, titulo, unidad);
 }
