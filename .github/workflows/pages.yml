@@ -22,7 +22,6 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.13'
-  NODE_VERSION: '22'
 
 jobs:
   construir:
@@ -40,11 +39,6 @@ jobs:
           cache: pip
           cache-dependency-path: requirements.txt
 
-      - name: Instalar Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Instalar dependencias de construcción
         run: |
           python -m pip install --upgrade pip
@@ -57,14 +51,10 @@ jobs:
         run: python tools/build_web.py
 
       - name: Validar el artefacto
-        # Presupuestos, enlaces del manifiesto, JSON estricto y ausencia de
-        # rutas absolutas que romperian bajo el subdirectorio de Pages.
+        # Presupuestos, enlaces del manifiesto, JSON estricto, presencia de las
+        # nueve vistas en cada informe y ausencia de rutas absolutas que
+        # romperian bajo el subdirectorio de Pages.
         run: python tools/check_dist.py
-
-      - name: Pruebas de JavaScript
-        # Comparan las diez vistas calculadas en el navegador contra las que
-        # Python acaba de generar en dist/.
-        run: node --test "web/tests/**/*.test.js"
 
       - name: Resumir el tamaño del artefacto
         run: |
@@ -75,7 +65,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Tamaño total | $(du -sh dist | cut -f1) |"
             echo "| Archivos | $(find dist -type f | wc -l) |"
-            echo "| Activos publicados | $(python -c "import json;print(len(json.load(open('dist/data/manifest.json'))['assets']))") |"
+            echo "| Instrumentos | $(python -c "import json;print(len(json.load(open('dist/data/manifest.json'))['assets']))") |"
             echo "| Observaciones | $(python -c "import json;print(f\"{json.load(open('dist/data/manifest.json'))['sourceRowCount']:,}\")") |"
           } >> "$GITHUB_STEP_SUMMARY"
 

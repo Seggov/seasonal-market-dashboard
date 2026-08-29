@@ -362,8 +362,7 @@ depender de reescrituras del servidor, y el build genera `.nojekyll`.
 
 ## Instalacion
 
-Para **construir** el sitio hace falta Python 3.10 o superior (CI fija 3.13) y,
-para ejecutar las pruebas de JavaScript, Node 20.11 o superior (CI fija 22).
+Para **construir** el sitio hace falta Python 3.10 o superior (CI fija 3.13).
 Para **ver** el sitio publicado solo hace falta un navegador moderno.
 
 ```powershell
@@ -375,8 +374,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-No hay dependencias de npm: Plotly esta vendorizado en `web/assets/vendor/` con
-version fijada y el resto es JavaScript vanilla.
+No hay dependencias de npm ni de Node: Plotly esta vendorizado en
+`web/assets/vendor/` con version fijada y el resto es JavaScript vanilla.
 
 ## Construccion y desarrollo local
 

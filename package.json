@@ -8,8 +8,5 @@
     "build": "python tools/build_web.py",
     "serve": "python tools/serve.py",
     "check": "python tools/check_dist.py"
-  },
-  "engines": {
-    "node": ">=20.11"
   }
 }
