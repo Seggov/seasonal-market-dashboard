@@ -125,7 +125,11 @@ def tabla_transiciones(
     def desplazamiento(instante: datetime) -> int:
         return int(instante.astimezone(zona).utcoffset().total_seconds())
 
+    def abreviatura(instante: datetime) -> str:
+        return instante.astimezone(zona).tzname() or nombre_zona
+
     inicial = desplazamiento(inicio)
+    abreviatura_inicial = abreviatura(inicio)
     transiciones: list[list[int]] = []
     anterior = inicial
     cursor = inicio
@@ -141,12 +145,13 @@ def tabla_transiciones(
                     bajo = medio
                 else:
                     alto = medio
-            transiciones.append([int(alto.timestamp()), actual])
+            transiciones.append([int(alto.timestamp()), actual, abreviatura(alto)])
             anterior = actual
         cursor = siguiente
     return {
         "name": nombre_zona,
         "initialOffset": inicial,
+        "initialAbbr": abreviatura_inicial,
         "transitions": transiciones,
     }
 

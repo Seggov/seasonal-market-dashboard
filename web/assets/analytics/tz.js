@@ -113,13 +113,15 @@ export class ZonaMercado {
   constructor(datos) {
     this.nombre = datos?.name ?? 'UTC';
     this.desplazamientoInicial = datos?.initialOffset ?? 0;
+    this.abreviaturaInicial = datos?.initialAbbr ?? this.nombre;
     const transiciones = datos?.transitions ?? [];
     this.instantes = Float64Array.from(transiciones.map(([instante]) => instante));
     this.desplazamientos = Int32Array.from(transiciones.map(([, offset]) => offset));
+    this.abreviaturas = transiciones.map(([, , abreviatura]) => abreviatura ?? this.nombre);
   }
 
-  /** Desplazamiento UTC vigente en un instante absoluto. */
-  desplazamientoEn(epochUtc) {
+  /** Indice de la ultima transicion vigente en un instante absoluto. */
+  #tramo(epochUtc) {
     let bajo = 0;
     let alto = this.instantes.length;
     while (bajo < alto) {
@@ -127,7 +129,19 @@ export class ZonaMercado {
       if (this.instantes[medio] <= epochUtc) bajo = medio + 1;
       else alto = medio;
     }
-    return bajo === 0 ? this.desplazamientoInicial : this.desplazamientos[bajo - 1];
+    return bajo;
+  }
+
+  /** Abreviatura del huso vigente (EST, EDT, JST, UTC...). */
+  abreviaturaEn(epochUtc) {
+    const tramo = this.#tramo(epochUtc);
+    return tramo === 0 ? this.abreviaturaInicial : this.abreviaturas[tramo - 1];
+  }
+
+  /** Desplazamiento UTC vigente en un instante absoluto. */
+  desplazamientoEn(epochUtc) {
+    const tramo = this.#tramo(epochUtc);
+    return tramo === 0 ? this.desplazamientoInicial : this.desplazamientos[tramo - 1];
   }
 
   /**
