@@ -25,6 +25,22 @@ export const VISTAS = [
 
 const bloque = (hijos) => elemento('div', { clase: 'view__body' }, [].concat(hijos));
 
+/**
+ * Decimales con los que un mapa de calor resulta legible.
+ *
+ * Los retornos horarios son centesimas de punto: con dos decimales casi toda la
+ * rejilla mostraria `0.00`. Se eligen segun la magnitud real de los datos para
+ * que cada celda diga algo.
+ */
+function decimalesUtiles(matriz) {
+  const magnitudes = matriz.flat().filter(Number.isFinite).map(Math.abs);
+  if (!magnitudes.length) return 2;
+  const maximo = Math.max(...magnitudes);
+  if (maximo < 0.02) return 4;
+  if (maximo < 0.2) return 3;
+  return 2;
+}
+
 /** Curvas pequeñas, una por clave, omitiendo las que no tienen forma. */
 function curvas(lista, etiquetas, desplazamiento) {
   const tarjetas = etiquetas.map((nombre, indice) => {
@@ -63,7 +79,11 @@ function periodo({ vistas }) {
       { titulo: 'Retorno por año', altura: 300 }),
     mapaCalor(
       { x: MESES, y: años.map(String), z: meses },
-      { titulo: 'Retorno por año y mes', altura: Math.max(260, 60 + años.length * 22) },
+      {
+        titulo: 'Retorno por año y mes',
+        altura: Math.max(260, 62 + años.length * 24),
+        decimales: decimalesUtiles(meses),
+      },
     ),
   ]);
 }
@@ -117,7 +137,13 @@ function diaria({ vistas }) {
       { titulo: 'Retorno medio por día del mes', altura: 300, etiquetas: false }),
     mapaCalor(
       { x: dias.map(String), y: [''], z: [dias.map((d) => porDia.get(d) ?? null)] },
-      { titulo: 'Mapa por día del mes', altura: 130, escalaVisible: false },
+      {
+        titulo: 'Mapa por día del mes',
+        altura: 118,
+        escalaVisible: false,
+        tamanoTexto: 9,
+        anchoMinimoCelda: 42,
+      },
     ),
   ]);
 }
@@ -142,10 +168,9 @@ function matriz({ vistas }) {
       { x: datos.dias.map((d) => d.slice(0, 3).toUpperCase()), y: datos.horas, z: datos.valores },
       {
         titulo: 'Retorno medio por día y hora',
-        altura: Math.max(320, 70 + datos.horas.length * 22),
-        // Los retornos horarios son centesimas: el numero en cada celda no
-        // aporta y satura la lectura. El color y el tooltip bastan.
-        etiquetas: false,
+        altura: Math.max(340, 74 + datos.horas.length * 26),
+        decimales: decimalesUtiles(datos.valores),
+        tamanoTexto: 9,
       },
     ),
     nota(`Celdas con menos de ${datos.minimoObservaciones} observaciones quedan vacías.`),

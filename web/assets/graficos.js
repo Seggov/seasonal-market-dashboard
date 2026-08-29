@@ -41,6 +41,26 @@ function listo() {
 function reajustar(nodo) {
   if (!nodo?.data || !nodo.isConnected || nodo.clientWidth < 1) return;
   window.Plotly?.Plots.resize(nodo);
+  aplicarEtiquetas(nodo);
+}
+
+/**
+ * Muestra el valor dentro de cada celda solo si la celda es lo bastante ancha.
+ *
+ * Plotly no recorta ni oculta el texto de un mapa de calor que no cabe: lo
+ * superpone. Con muchas columnas en una pantalla estrecha eso es ilegible, asi
+ * que la decision se rehace en cada reajuste.
+ */
+function aplicarEtiquetas(nodo) {
+  const cfg = nodo.__etiquetas;
+  if (!cfg || !window.Plotly) return;
+  const cabe = nodo.clientWidth / cfg.columnas >= cfg.anchoMinimo;
+  if (cabe === cfg.visibles) return;
+  cfg.visibles = cabe;
+  window.Plotly.restyle(nodo, {
+    text: [cabe ? cfg.textos : null],
+    texttemplate: cabe ? '%{text}' : null,
+  }, [0]);
 }
 
 // El observador cubre los cambios de ancho que no mueven la ventana; el oyente
@@ -260,7 +280,7 @@ export function velas(datos, { titulo = 'Precio', unidad = '', altura = 400 } = 
  */
 export function mapaCalor(datos, {
   titulo, unidad = '%', altura = 420, centro = 0, decimales = 2,
-  etiquetas = true, escalaVisible = true, tamanoTexto = 10,
+  etiquetas = true, escalaVisible = true, tamanoTexto = 10, anchoMinimoCelda = 54,
 } = {}) {
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
@@ -290,16 +310,26 @@ export function mapaCalor(datos, {
         [0, '#c0392b'], [0.25, '#7d3038'], [0.5, '#1c2029'],
         [0.75, '#1f6b62'], [1, '#1fae9a'],
       ];
+
+    const textos = etiquetas ? datos.z.map((fila) => fila.map(
+      (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(decimales)}${unidad}` : ''),
+    )) : null;
+    const caben = textos !== null
+      && nodo.clientWidth / Math.max(1, datos.x.length) >= anchoMinimoCelda;
+    if (textos !== null) {
+      nodo.__etiquetas = {
+        textos, columnas: datos.x.length, anchoMinimo: anchoMinimoCelda, visibles: caben,
+      };
+    }
+
     Plotly.newPlot(nodo, [{
       type: 'heatmap',
       x: datos.x,
       y: datos.y,
       z: datos.z,
-      text: etiquetas ? datos.z.map((f) => f.map(
-        (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(decimales)}` : ''),
-      )) : undefined,
-      texttemplate: etiquetas ? '%{text}' : undefined,
-      textfont: { size: tamanoTexto, family: FUENTE, color: '#e6e9ef' },
+      text: caben ? textos : undefined,
+      texttemplate: caben ? '%{text}' : undefined,
+      textfont: { size: tamanoTexto, family: FUENTE, color: '#e9ecf2' },
       colorscale: escala,
       zmid: centro === null ? undefined : centro,
       showscale: escalaVisible,
