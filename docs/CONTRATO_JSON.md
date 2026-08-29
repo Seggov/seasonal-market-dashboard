@@ -74,8 +74,9 @@ dist/
       "bytes": { "report": 51234, "series": 1234567 },
       "tz": {
         "name": "UTC",
-        "transitions": [[epochUTC, offsetSegundos], …],
-        "initialOffset": 0
+        "initialOffset": 0,
+        "initialAbbr": "UTC",
+        "transitions": [[epochUTC, offsetSegundos, "EDT"], …]
       }
     }
   ]
@@ -84,7 +85,8 @@ dist/
 
 `transitions` cubre el rango de datos del activo más un año de margen a cada
 lado. Permite convertir hora local a instante absoluto sin usar la zona horaria
-del navegador.
+del navegador. La abreviatura (`EST`, `EDT`, `JST`, `UTC`…) se publica para poder
+etiquetar las fechas igual que hacía Streamlit.
 
 ## `series-<AÑO>.<hash>.json`
 
@@ -109,9 +111,14 @@ Velas base del año, en hora local del mercado, formato columnar.
   división de un entero exacto por una potencia de diez está correctamente
   redondeada en IEEE-754, así que reproduce **bit a bit** el doble que Python
   obtiene al parsear el CSV.
-- `scale` es `null` (y los arrays contienen dobles literales sin delta) cuando
-  el CSV trae más decimales de los que caben en 2^53 al escalar — el caso de
-  `SP500` y `NIKKEI225`, cuyos precios de Yahoo llevan 13 decimales.
+- La escala se elige como la menor potencia de diez (hasta `10^12`) que
+  reproduzca **exactamente** todos los precios, y solo se acepta tras verificar
+  elemento a elemento que `round(valor·escala) / escala == valor` y que el
+  entero resultante cabe por debajo de `2^53`. Con los ocho CSV actuales las
+  ocho series obtienen escala: de `10^2` en `BTCUSDT` a `10^11` en los índices
+  de Yahoo, cuyos precios traen muchos decimales.
+- `scale` es `null` cuando esa comprobación no pasa. En ese caso los arrays
+  contienen dobles literales, sin delta, y el decodificador los usa tal cual.
 - `volume` no se publica: ninguna vista lo analiza.
 
 ## `report.<hash>.json`
@@ -130,6 +137,10 @@ Web Worker recalcula al cambiar cualquier filtro.
     "fechaInicial": "2003-05-04T20:00:00-04:00",
     "fechaFinal": "2026-07-24T16:00:00-04:00",
     "velasUtilizadas": 140352,
+    // Los conteos de cobertura, sin la lista completa de intervalos ausentes:
+    // puede tener miles de marcas y ninguna vista la usa. Se conserva una
+    // muestra de diez en "muestraFaltantes".
+    "cobertura": { "disponible": true, "porcentaje": 99.84, "faltantes": 128, … },
     "motivosInvalidez": { "duplicado; se conserva la primera aparicion": 1 },
     "advertencias": [ … ]
   },
@@ -143,9 +154,34 @@ Web Worker recalcula al cambiar cualquier filtro.
 }
 ```
 
-Las pruebas de paridad comparan `defaultViews` (generado por Python) contra la
-salida del módulo de analítica en JavaScript sobre las mismas series, con la
-tolerancia de `PARIDAD.md` §2.5.
+### Convención de nombres
+
+La **envoltura** (metadatos, enlaces, versiones) usa `camelCase`. Las **cargas
+analíticas** conservan los nombres de campo de Python (`numero_mes`,
+`positivo_pct`, `return_percent`…), de modo que la correspondencia entre
+`exportador.vista_*` y su espejo en JavaScript es literal y las pruebas de
+paridad pueden compararlas término a término.
+
+### Tiempo
+
+Las vistas nunca publican fechas con formato. Cada marca viaja como dos enteros:
+
+- `inicio` / `fin`: instante absoluto en segundos desde la época.
+- `inicioLocal` / `finLocal`: epoch local (`instante + desplazamiento`).
+
+El cliente deriva de ahí año, mes, día, hora y día de la semana; el
+desplazamiento se recupera restando ambos valores. Así ninguna de las dos
+implementaciones depende de un analizador de cadenas ni de la zona horaria del
+navegador. `resumen.velas` publica `t` (absoluto) y `lt` (local) en paralelo.
+
+### Pruebas de paridad
+
+- `web/tests/paridad.test.js` compara **carga completa** contra `defaultViews`
+  de cada `report.json`, con la tolerancia de `PARIDAD.md` §2.5.
+- `web/tests/filtros.test.js` compara un **digesto numérico** (conteos, suma,
+  mínimo, máximo y una suma ponderada por posición, sensible a reordenaciones)
+  para catorce configuraciones de filtros no predeterminados por activo,
+  generado con `python tools/generar_paridad_filtros.py`.
 
 ## Presupuestos
 

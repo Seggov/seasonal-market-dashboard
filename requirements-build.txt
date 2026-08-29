@@ -1,0 +1,8 @@
+# Dependencias necesarias para GENERAR el sitio estatico y ejecutar las pruebas.
+#
+# El sitio publicado no ejecuta Python: estas bibliotecas solo intervienen en
+# tiempo de construccion, en local y en GitHub Actions.
+pandas>=2.2,<4
+numpy>=2.0,<3
+pytest>=8.3,<10
+tzdata>=2025.1
