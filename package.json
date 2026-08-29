@@ -5,10 +5,12 @@
   "type": "module",
   "description": "Panel estatico de estacionalidad de mercados para GitHub Pages.",
   "scripts": {
-    "test": "node --test web/tests/",
+    "test": "node --test \"web/tests/**/*.test.js\"",
     "build": "python tools/build_web.py",
     "serve": "python tools/serve.py",
     "check": "python tools/check_dist.py"
   },
-  "engines": { "node": ">=20.11" }
+  "engines": {
+    "node": ">=20.11"
+  }
 }

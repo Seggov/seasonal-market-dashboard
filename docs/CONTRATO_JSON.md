@@ -185,10 +185,17 @@ navegador. `resumen.velas` publica `t` (absoluto) y `lt` (local) en paralelo.
 
 ## Presupuestos
 
-| Presupuesto | Límite | Verificado por |
-|---|---|---|
-| Tamaño total del sitio | 200 MB (límite duro de Pages: 1 GB) | `tools/check_dist.py` |
-| Carga inicial (shell + manifiesto, sin comprimir) | 6 MB | `tools/check_dist.py` |
-| Mayor fragmento individual | 8 MB | `tools/check_dist.py` |
-| Tiempo de generación | 10 min (límite de Pages) | workflow |
-| Cambio de activo | < 2 s en red local | verificación manual |
+| Presupuesto | Límite | Medido | Verificado por |
+|---|---|---|---|
+| Tamaño total del sitio | 200 MB (límite duro de Pages: 1 GB) | **20,5 MB** (145 archivos) | `tools/check_dist.py` |
+| Carga inicial (shell + manifiesto, sin comprimir) | 6 MB | **4,50 MB** | `tools/check_dist.py` |
+| Mayor fragmento individual | 8 MB | **4,35 MB** (Plotly) | `tools/check_dist.py` |
+| Tiempo de generación | 10 min (límite de Pages) | **110 s** | workflow |
+| Cambio de activo en frío (139 k velas) | < 2 s | **1,35 s** | verificación manual |
+| Cambio de activo en caliente (140 k velas) | < 2 s | **0,94 s** | verificación manual |
+| Cambio de vista con recálculo | < 2 s | **1,00 s** | verificación manual |
+| Memoria del hilo principal, activo mayor | < 200 MB | **20 MB** | verificación manual |
+
+El mayor fragmento es la biblioteca de gráficos, no un archivo de datos: el
+mayor JSON de series ronda los 250 KB. Se eligió el bundle completo de Plotly
+porque ningún bundle parcial incluye a la vez mapas de calor y velas.
