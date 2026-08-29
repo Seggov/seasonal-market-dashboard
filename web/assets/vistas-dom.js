@@ -1,23 +1,14 @@
 /**
- * Renderizadores de cada vista.
+ * Registro de renderizadores de vista.
  *
- * Cada funcion recibe las cargas ya calculadas por el worker y devuelve un
- * fragmento de DOM. No hacen calculos: solo presentacion.
+ * Cada renderizador recibe las cargas ya calculadas por el worker y devuelve
+ * un fragmento de DOM. No hacen calculos analiticos: solo presentacion.
  */
 
-import { elemento, estadoVacio } from './ui.js';
+import { vistaCalidad, vistaResumen } from './vistas/resumen.js';
 
 /** @type {Record<string, (contexto: object) => Node>} */
-export const RENDERIZADORES = {};
-
-/** Registra el renderizador de una vista. */
-export function registrar(clave, renderizador) {
-  RENDERIZADORES[clave] = renderizador;
-}
-
-/** Envoltorio comun: agrupa las secciones de una vista. */
-export function contenedor(hijos) {
-  return elemento('div', { clase: 'vista__lienzo' }, [].concat(hijos));
-}
-
-export { estadoVacio };
+export const RENDERIZADORES = {
+  resumen: vistaResumen,
+  calidad: vistaCalidad,
+};

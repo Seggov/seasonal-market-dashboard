@@ -555,6 +555,23 @@ def vistas_por_defecto(
 # --------------------------------------------------------------------------
 
 
+def _cobertura_publicable(cobertura: dict[str, Any]) -> dict[str, Any]:
+    """Publica los conteos de cobertura, no la lista de intervalos ausentes.
+
+    ``intervalos_faltantes`` puede tener miles de marcas y ninguna vista lo
+    usa: la interfaz solo muestra el porcentaje, igual que Streamlit.
+    """
+
+    resumido = {
+        clave: valor
+        for clave, valor in cobertura.items()
+        if clave != "intervalos_faltantes"
+    }
+    if "intervalos_faltantes" in cobertura:
+        resumido["muestraFaltantes"] = list(cobertura["intervalos_faltantes"])[:10]
+    return resumido
+
+
 def _motivos_invalidez(invalidos: pd.DataFrame) -> dict[str, int]:
     if invalidos.empty or "motivo_invalidez" not in invalidos:
         return {}
@@ -594,7 +611,7 @@ def construir_informe(
             "positivas": int(resultado.resumen["positivas"]),
             "negativas": int(resultado.resumen["negativas"]),
             "neutras": int(resultado.resumen["neutras"]),
-            "cobertura": limpiar(resultado.resumen["cobertura"]),
+            "cobertura": limpiar(_cobertura_publicable(resultado.resumen["cobertura"])),
             "motivosInvalidez": _motivos_invalidez(resultado.invalidos),
             "advertencias": [str(aviso) for aviso in resultado.advertencias],
         },

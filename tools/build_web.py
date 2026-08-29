@@ -52,6 +52,23 @@ def _escribir(ruta: Path, texto: str) -> int:
     return len(datos)
 
 
+def _vaciar(destino: Path) -> None:
+    """Borra el contenido de ``dist/`` sin exigir borrar el propio directorio.
+
+    En Windows un servidor local abierto sobre ``dist/`` impide ``rmtree``; los
+    archivos si se pueden eliminar, y el build recrea los directorios.
+    """
+
+    for ruta in sorted(destino.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+        try:
+            if ruta.is_file() or ruta.is_symlink():
+                ruta.unlink()
+            else:
+                ruta.rmdir()
+        except OSError:
+            pass
+
+
 def _copiar_shell(destino: Path) -> None:
     """Copia el HTML, el CSS y los modulos JavaScript a ``dist/``."""
 
@@ -131,7 +148,7 @@ def construir(
         raise SystemExit("No hay activos validos que exportar.")
 
     if not solo_datos and destino.exists():
-        shutil.rmtree(destino)
+        _vaciar(destino)
     destino.mkdir(parents=True, exist_ok=True)
     if not solo_datos:
         if verboso:

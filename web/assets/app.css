@@ -316,3 +316,7 @@ td.ausente { color: var(--tinta-suave); }
   .cabecera__acciones, .panel, .navegacion { display: none; }
   .disposicion { grid-template-columns: minmax(0, 1fr); }
 }
+
+.lista { margin: 0; padding-left: 1.2rem; color: var(--tinta-suave); font-size: .87rem; }
+.lista li { margin: .15rem 0; }
+.vista__lienzo { display: grid; gap: 1.1rem; min-width: 0; }

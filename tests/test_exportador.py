@@ -78,12 +78,14 @@ def test_transiciones_de_nueva_york_incluyen_los_dos_cambios_anuales() -> None:
         datetime(2024, 12, 31, tzinfo=timezone.utc),
     )
     assert zona["name"] == "America/New_York"
-    desplazamientos = {offset for _, offset in zona["transitions"]}
+    desplazamientos = {offset for _, offset, *_ in zona["transitions"]}
     assert desplazamientos == {-18000, -14400}
     # 2024-03-10 07:00Z pasa a EDT y 2024-11-03 06:00Z vuelve a EST.
-    instantes = {marca for marca, _ in zona["transitions"]}
+    instantes = {marca for marca, *_ in zona["transitions"]}
     assert int(datetime(2024, 3, 10, 7, tzinfo=timezone.utc).timestamp()) in instantes
     assert int(datetime(2024, 11, 3, 6, tzinfo=timezone.utc).timestamp()) in instantes
+    abreviaturas = {abreviatura for _, _, abreviatura in zona["transitions"]}
+    assert abreviaturas == {"EST", "EDT"}
 
 
 def test_transiciones_de_tokio_estan_vacias() -> None:
