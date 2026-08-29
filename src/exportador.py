@@ -219,7 +219,7 @@ def construir_serie(
     """Empaqueta las velas de un año en el formato columnar del contrato."""
 
     fechas = pd.to_datetime(marco[columna_fecha])
-    epochs = (fechas.astype("int64") // 1_000_000_000).to_numpy()
+    instantes = (fechas.astype("int64") // 1_000_000_000).to_numpy()
     offsets = np.array(
         [int(marca.utcoffset().total_seconds()) for marca in fechas], dtype=np.int64
     )
@@ -234,8 +234,8 @@ def construir_serie(
         "year": int(año),
         "count": int(len(marco)),
         "scale": escala,
-        "t0": int(epochs[0]),
-        "dt": [int(valor) for valor in np.diff(epochs)],
+        "t0": int(instantes[0]),
+        "dt": [int(valor) for valor in np.diff(instantes)],
         "off": _rle_desplazamientos(offsets),
         "o": _codificar_precios(columnas["open"], escala),
         "h": _codificar_precios(columnas["high"], escala),
@@ -266,6 +266,23 @@ def _filas(marco: pd.DataFrame) -> list[dict[str, Any]]:
     return [limpiar(fila) for fila in marco.to_dict(orient="records")]
 
 
+def epochs(fechas: pd.Series) -> tuple[list[int], list[int]]:
+    """Devuelve el instante absoluto y el epoch local de cada marca.
+
+    El cliente formatea la hora del mercado a partir del epoch local, de modo
+    que nunca necesita la zona horaria del navegador ni un analizador de
+    cadenas con desplazamiento.
+    """
+
+    marcas = pd.to_datetime(fechas)
+    absolutos = [int(marca.timestamp()) for marca in marcas]
+    locales = [
+        instante + int(marca.utcoffset().total_seconds() if marca.utcoffset() else 0)
+        for instante, marca in zip(absolutos, marcas)
+    ]
+    return absolutos, locales
+
+
 def _curvas_por_clave(
     marco: pd.DataFrame, clave: str, eje: str, valor: str
 ) -> list[dict[str, Any]]:
@@ -294,14 +311,17 @@ def vista_resumen(
 
     metricas = vistas.metricas_resumen(datos, activo, columna_fecha)
     grafico, resumido = vistas.downsample_ohlc(datos, columna_fecha)
-    fechas = pd.to_datetime(grafico[columna_fecha]) if len(grafico) else pd.Series(dtype="datetime64[ns, UTC]")
+    absolutos, locales = (
+        epochs(grafico[columna_fecha]) if len(grafico) else ([], [])
+    )
     return {
         "metricas": limpiar(metricas),
         "velas": {
             "resumido": bool(resumido),
             "total": int(len(datos)),
             "mostradas": int(len(grafico)),
-            "t": [int(marca.timestamp()) for marca in fechas],
+            "t": absolutos,
+            "lt": locales,
             "o": [limpiar(valor) for valor in grafico["open"]] if len(grafico) else [],
             "h": [limpiar(valor) for valor in grafico["high"]] if len(grafico) else [],
             "l": [limpiar(valor) for valor in grafico["low"]] if len(grafico) else [],
@@ -482,21 +502,28 @@ def vista_extremos(
     extremos = eventos_extremos(
         periodos, n=int(n), umbral=umbral, columna_fecha=fecha_periodo
     )
-    columnas = [
-        "inicio",
-        "fin",
-        "open",
-        "close",
-        "return_percent",
-        "cantidad_registros",
-        "completo",
-        "tipo_extremo",
+    inicio_abs, inicio_local = epochs(extremos["inicio"])
+    fin_abs, fin_local = epochs(extremos["fin"])
+    filas = [
+        {
+            "inicio": inicio_abs[posicion],
+            "inicioLocal": inicio_local[posicion],
+            "fin": fin_abs[posicion],
+            "finLocal": fin_local[posicion],
+            "open": limpiar(fila["open"]),
+            "close": limpiar(fila["close"]),
+            "return_percent": limpiar(fila["return_percent"]),
+            "cantidad_registros": int(fila["cantidad_registros"]),
+            "completo": bool(fila["completo"]),
+            "tipo_extremo": str(fila["tipo_extremo"]),
+        }
+        for posicion, fila in enumerate(extremos.to_dict(orient="records"))
     ]
     return {
         "periodo": periodo,
         "n": int(n),
         "umbral": umbral,
-        "filas": _filas(extremos[columnas]),
+        "filas": filas,
     }
 
 
