@@ -8,6 +8,13 @@ observado difiere de su documentación o de lo que sería semánticamente deseab
 la migración replica el comportamiento observado y lo registra aquí. Las
 correcciones semánticas se abordan en commits o issues posteriores.
 
+> **Alcance actual.** El sitio publicado es solo visualización: Python calcula y
+> el navegador dibuja. Por eso ya no existen los controles interactivos de
+> sesión, IQR, métrica de matriz ni ranking de extremos; el análisis se emite
+> siempre con la **sesión declarada** y los valores por defecto que se detallan
+> en §5. Las reglas numéricas y de calendario de este documento siguen vigentes
+> porque describen el núcleo de `src/`, que es quien calcula.
+
 ---
 
 ## 1. Alcance funcional
@@ -27,21 +34,31 @@ correcciones semánticas se abordan en commits o issues posteriores.
 
 Total: **604 111** observaciones válidas.
 
-### 1.2 Vistas (10)
+### 1.2 Vistas (9)
 
-`Resumen`, `Calidad de datos`, `Análisis por periodo`, `Análisis mensual`,
-`Análisis semanal`, `Día de la semana`, `Análisis diario`, `Análisis horario`,
-`Matriz día-hora`, `Eventos extremos`.
+`Resumen`, `Anual`, `Mensual`, `Semanal`, `Día de la semana`, `Día del mes`,
+`Horario`, `Matriz día-hora`, `Extremos`.
 
-### 1.3 Controles que deben conservarse
+La décima vista de la versión original, `Calidad de datos`, no se publica: era
+una tabla de conteos de validación, no una visualización. Los conteos siguen
+calculándose y probándose en `src/datos.py`, y el número de observaciones
+válidas aparece en la cabecera de cada instrumento.
 
-- Tema claro / oscuro.
-- Selección de categoría y de activo.
-- Sesión: `Declarada`, `Observada`, `Personalizada`.
-- Filtro IQR (vista semanal y matriz), con factor configurable en la matriz.
-- Métrica de la matriz y mínimo de observaciones por celda.
-- Eventos extremos: periodo, y o bien `n` mejores/peores o bien umbral absoluto.
-- Estados de carga, error y ausencia de datos.
+### 1.3 Configuración publicada
+
+El generador emite una sola configuración, la predeterminada de la versión
+original:
+
+| Parámetro | Valor |
+|---|---|
+| Sesión | `Declarada` |
+| Filtro IQR | desactivado |
+| Métrica de la matriz | `mean`, mínimo 5 observaciones por celda |
+| Eventos extremos | periodo `Día`, 10 mejores y 10 peores |
+
+Los modos `Observada` y `Personalizada` siguen implementados y probados en
+`src/vistas.py` (`aplicar_sesion`), porque definen la semántica de la sesión
+declarada; simplemente no se exponen como control.
 
 ---
 
@@ -89,16 +106,14 @@ Conservación: `no_finito | (r >= Q1 - f*IQR - 1e-10 && r <= Q3 + f*IQR + 1e-10)
 **Los valores no finitos se conservan** deliberadamente, para no ocultar
 problemas de calidad ajenos al criterio IQR.
 
-### 2.5 Tolerancia Python ↔ JavaScript
+### 2.5 Exactitud de lo publicado
 
-Ambas implementaciones usan IEEE-754 binario de 64 bits, pero difieren en el
-orden de suma (NumPy usa suma por pares; JavaScript usa suma compensada
-Kahan–Neumaier). Tolerancia aceptada y verificada por las pruebas de paridad:
+Todo el cálculo ocurre en Python, así que no hay dos implementaciones que
+puedan divergir. Lo que se publica son los mismos dobles IEEE-754 que produjo
+NumPy, serializados con `repr` y por tanto reversibles bit a bit.
 
-- **Absoluta `1e-9`** o **relativa `1e-12`**, la que sea mayor, para todo valor
-  expresado en puntos porcentuales.
-- **Exactitud binaria** para precios, conteos, marcas de tiempo y banderas
-  booleanas.
+El navegador solo formatea para mostrar: redondea a dos decimales al pintar,
+sin volver a operar sobre los números.
 
 ---
 
@@ -109,14 +124,12 @@ Kahan–Neumaier). Tolerancia aceptada y verificada por las pruebas de paridad:
 1. **La zona horaria del navegador nunca interviene.** Todo campo de calendario
    (año, mes, día, hora, día de la semana, semana ISO) se deriva de la hora
    local del mercado declarada en `activos.json`.
-2. El generador Python emite, por observación: epoch UTC, desplazamiento UTC en
-   segundos y epoch local (`epoch_utc + offset`). El cliente extrae los campos
-   de calendario del epoch local con los captadores `getUTC*`, de modo que
-   reproduce la hora de pared del mercado sin consultar el sistema.
-3. El manifiesto incluye la **tabla de transiciones** de cada zona (instante y
-   desplazamiento), para poder convertir hora local a instante absoluto al
-   calcular los límites de un periodo. Así un día con cambio de horario dura
-   correctamente 23 o 25 horas.
+2. La agregación por periodo, incluidos los límites de un día con cambio de
+   horario (23 o 25 horas), la resuelve pandas con `zoneinfo` durante la
+   construcción.
+3. De las marcas que se dibujan, el generador publica el **epoch local**
+   (`instante absoluto + desplazamiento`). El cliente deriva de él año, mes,
+   día, hora y minuto con aritmética civil exacta, sin construir un `Date`.
 
 ### 3.2 Clave de agrupación por periodo
 
@@ -136,6 +149,7 @@ Réplica exacta de `analisis._clave_periodo`:
 > desplazamiento menor (p. ej. `-18000` = EST) precede al mayor (`-14400` = EDT),
 > la **segunda** ocurrencia cronológica se ordena **antes** que la primera.
 > Se conserva. Ninguno de los ocho CSV actuales contiene esa hora repetida.
+> Cubierto por `tests/test_tiempo.py`.
 
 ### 3.3 Límites y completitud de un periodo
 
@@ -229,86 +243,66 @@ de otoño (hora repetida), semanas ISO que cruzan de año, velas que empiezan en
 
 ## 5. Definición vista por vista
 
+Todas se calculan sobre la serie con la **sesión declarada** aplicada.
+
 ### 5.1 Resumen
-- `Último cierre`: `close` de la última vela de la serie filtrada, 4 decimales.
-- `Retorno del último mes`: `return_percent` del **último** grupo mensual.
-- `Retorno del último año`: `return_percent` del **último** grupo anual.
-- `Velas positivas` / `Velas negativas`: `positivo_pct` / `negativo_pct` sobre
-  las velas base filtradas.
-- Gráfico de velas. Si hay más de **3 000** velas se agrupan en bloques
-  consecutivos de `ceil(n / 3000)` velas (`open` primero, `high` máximo,
-  `low` mínimo, `close` último) y se avisa del resumen. Las estadísticas siguen
-  usando todas las observaciones.
+- `Último cierre`: `close` de la última vela.
+- `Mes` / `Año`: `return_percent` del **último** grupo mensual y anual.
+- `Velas +` / `Velas −`: `positivo_pct` / `negativo_pct` sobre las velas base.
+- Gráfico de velas. Con más de **3 000** velas se agrupan en bloques
+  consecutivos de `ceil(n / 3000)` (`open` primero, `high` máximo, `low` mínimo,
+  `close` último). Las métricas siguen usando todas las observaciones.
 
-### 5.2 Calidad de datos
-Seis métricas de la **validación completa** (serie sin filtrar): filas totales
-del archivo, fecha inicial, fecha final, filas válidas, velas utilizadas, filas
-eliminadas. No depende de la sesión ni de ningún filtro.
-
-### 5.3 Análisis por periodo
+### 5.2 Anual
 - Barras de `return_percent` por año.
-- Tabla pivote año × mes reindexada al rango completo de años y a los 12 meses,
-  más la columna `Retorno acumulado del año` tomada del agregado anual.
-  Las celdas ausentes se muestran como `-`; el resto con dos decimales y `%`.
+- Mapa de calor año × mes, reindexado al rango completo de años y a los doce
+  meses. Las celdas sin datos quedan vacías.
 
-### 5.4 Análisis mensual
+### 5.3 Mensual
 - Barras del `promedio` de `estacionalidad_mes` sobre los **agregados
   mensuales** (no sobre las velas base).
 - Doce curvas: para cada mes calendario, media (ver A-5) del retorno acumulado
   diario `(close_día / open_del_mes - 1) * 100` por día del mes, sobre todos los
-  años. Se omite un mes con menos de 2 puntos.
+  años. Se omite una curva con menos de 2 puntos finitos.
 
-### 5.5 Análisis semanal
-- Agregados por semana ISO; filtro IQR global opcional (factor 1.5) aplicado a
-  esos agregados, informando cuántas semanas se excluyeron.
-- Barras y curva del `promedio` por número de semana ISO (1–53).
-- La línea de promedio de la curva es la media de `return_percent` de los
-  agregados semanales filtrados (no la media de los promedios por semana).
+### 5.4 Semanal
+- Barras y curva del `promedio` por número de semana ISO (1–53), sobre los
+  agregados semanales.
+- La línea de referencia es la media de `return_percent` de los agregados
+  semanales, no la media de los promedios por semana.
 
-### 5.6 Día de la semana
+### 5.5 Día de la semana
 - Barras del `promedio` por día sobre los **agregados diarios**.
-- Siete curvas de trayectoria: media del retorno acumulado horario respecto a la
-  primera apertura del día local, por hora y día de la semana.
+- Siete curvas: media del retorno acumulado horario respecto a la primera
+  apertura del día local.
 
-### 5.7 Análisis diario
-- Barras y curva del `promedio` por día del mes (1–31) sobre agregados diarios.
-- La línea de promedio es la **media de los promedios** por día del mes.
+### 5.6 Día del mes
+- Barras del `promedio` por día del mes (1–31) sobre agregados diarios.
 - Mapa de calor de una fila reindexado a 1–31.
 
-### 5.8 Análisis horario
+### 5.7 Horario
 - Barras del `promedio` por hora sobre los agregados horarios.
 - Siete curvas del retorno horario medio por día de la semana.
 - No disponible si la temporalidad no es intradía.
 
-### 5.9 Matriz día-hora
-- Métricas: `mean`, `median`, `positive_pct`, `std`, `count`.
-- IQR opcional con factor configurable sobre los agregados horarios.
-- Se enmascaran las celdas cuyo `count` sea menor que el mínimo indicado.
+### 5.8 Matriz día-hora
+- Retorno **medio** por día y hora; se enmascaran las celdas con menos de
+  **5** observaciones.
 - Ejes: solo los días y horas **observados**, en orden ascendente.
-- Detalle por día en pestañas.
 
-### 5.10 Eventos extremos
-- Periodo: `Vela base`, `Hora` (si intradía), `Día`, `Semana ISO`, `Mes`, `Año`.
-  Valor por defecto `Día`.
-- Sin umbral: `n` mayores positivos y `n` menores negativos (por defecto 5),
-  descartando neutros; luego se eliminan duplicados.
-- Con umbral: todos los eventos con `abs(r) >= umbral - 1e-10`.
+### 5.9 Extremos
+- Periodo `Día`: los **10** mayores positivos y los 10 menores negativos,
+  descartando neutros.
 - Orden: ver A-6.
-- Columnas: inicio, fin, open, close, retorno, conteo, completo, tipo.
-
----
 
 ## 6. Diferencias deliberadas respecto a Streamlit
 
-Estas son las **únicas** desviaciones permitidas en esta migración, porque
-GitHub Pages no ejecuta Python en tiempo real:
-
-1. **Sin "Actualizar datos y cache".** Se sustituye por `Recargar versión
-   publicada` (revalida el manifiesto) y `Limpiar caché local`. Nunca se
-   descargan datos y nunca se muestra la hora del navegador como hora de
-   actualización del mercado: se muestra `generatedAt` del manifiesto.
-2. **Las filas inválidas no viajan al cliente.** El detalle fila a fila de
-   `invalidos` se resume en `report.json` (conteos y motivos agregados); la
-   vista Calidad de datos muestra exactamente las mismas seis métricas.
-3. **El catálogo se sirve precalculado** desde `manifest.json` en lugar de
+1. **Sin controles de análisis.** El sitio publica una única configuración (§1.3)
+   y no ofrece selectores de sesión, IQR, métrica ni ranking. La aplicación
+   original era interactiva; esta es un tablero de lectura.
+2. **Sin acciones de mantenimiento.** No hay «Actualizar datos y cache» ni
+   equivalente: no hay nada que reprocesar en vivo. El pie muestra `generatedAt`
+   del manifiesto, nunca la hora del navegador.
+3. **Sin vista de calidad de datos.** Ver §1.2.
+4. **El catálogo se sirve precalculado** desde `manifest.json` en lugar de
    validar los ocho CSV en cada carga.

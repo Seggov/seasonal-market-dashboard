@@ -9,19 +9,18 @@ versionado durante la construccion; el sitio publicado es HTML, CSS y
 JavaScript vanilla sobre GitHub Pages, **sin backend y sin Python en tiempo de
 ejecucion**.
 
-Todo el calculo interactivo -- sesiones, filtros IQR, matriz dia-hora y eventos
-extremos -- ocurre en el navegador dentro de un Web Worker, sobre los mismos
-datos que valido Python.
+El reparto es estricto: **Python analiza y exporta, el navegador dibuja**. La
+pagina no recalcula nada ni ofrece controles de analisis; lee un JSON con los
+resultados ya calculados y los representa.
 
 > El proyecto es una herramienta de exploracion estadistica. No genera senales,
 > predicciones ni recomendaciones de inversion.
 
 ## Vista principal: matriz dia-hora
 
-La matriz cruza el dia de la semana con la hora local del mercado. Permite
-alternar entre media, mediana, porcentaje positivo, desviacion y numero de
-observaciones, ademas de aplicar un filtro IQR y un minimo de muestras por
-celda.
+La matriz cruza el dia de la semana con la hora local del mercado y muestra el
+retorno medio de cada celda. Las celdas con menos de cinco observaciones quedan
+vacias.
 
 ![Matriz de retornos por dia y hora](docs/images/day-hour-matrix.png)
 
@@ -52,26 +51,21 @@ deberian evaluarse con tecnicas inferenciales y pruebas fuera de muestra.
 
 ## Que permite explorar
 
-La interfaz incluye diez vistas:
+Nueve vistas, todas graficas:
 
-1. **Resumen:** cierre reciente, retornos, proporcion de velas positivas y
-   candlestick.
-2. **Calidad de datos:** filas totales, validas, eliminadas y rango temporal.
-3. **Analisis por periodo:** retornos por ano y tabla mensual por ano.
-4. **Analisis mensual:** retorno promedio por mes y trayectorias intrames.
-5. **Analisis semanal:** estacionalidad por semana ISO con filtro IQR opcional.
-6. **Dia de la semana:** retorno diario y trayectorias intradia.
-7. **Analisis diario:** comportamiento por dia del mes y heatmap.
-8. **Analisis horario:** retorno promedio por hora local.
-9. **Matriz dia-hora:** heatmap general y detalle separado por dia.
-10. **Eventos extremos:** mejores, peores o movimientos sobre un umbral.
+1. **Resumen:** cierre, retorno del ultimo mes y ano, proporcion de velas
+   positivas y grafico de velas.
+2. **Anual:** retorno por ano y mapa de calor ano x mes.
+3. **Mensual:** retorno medio por mes y las doce curvas historicas intrames.
+4. **Semanal:** estacionalidad por semana ISO y curva frente al promedio.
+5. **Dia de la semana:** retorno medio por dia y las siete curvas intradia.
+6. **Dia del mes:** comportamiento por dia del mes y mapa de calor.
+7. **Horario:** retorno medio por hora y curvas por dia de la semana.
+8. **Matriz dia-hora:** mapa de calor de retorno medio.
+9. **Extremos:** los diez mejores y peores dias.
 
-Tambien permite cambiar entre tema claro y oscuro, escoger el activo, aplicar
-sesiones declaradas, observadas o personalizadas, recargar la version publicada
-y limpiar la cache que la aplicacion guarda en el navegador.
-
-Cada vista es enlazable: el activo, la vista y los filtros viajan en el hash de
-la URL, por ejemplo `#/XAUUSD/matriz?metrica=median&min=20`.
+El unico control es la navegacion: instrumento y vista. Ambos viajan en el hash
+de la URL (`#/XAUUSD/matriz`), asi que cualquier vista es enlazable.
 
 ## Mas capturas
 
@@ -118,22 +112,20 @@ flowchart LR
         csv["CSV OHLCV H1"] --> data["datos.py<br/>lectura y validacion"]
         config --> data
         data --> views["vistas.py<br/>transformaciones puras"]
-        views --> export["exportador.py<br/>contrato JSON v1"]
-        export --> dist["dist/<br/>manifest + report + series"]
+        views --> export["exportador.py<br/>contrato JSON v2"]
+        export --> dist["dist/<br/>manifest + un report por activo"]
     end
 
     subgraph run["Ejecucion (navegador, GitHub Pages)"]
-        dist --> app["app.js<br/>catalogo, tema y rutas"]
-        app --> worker["worker.js<br/>Web Worker"]
-        worker --> core["analytics/*.js<br/>espejo de analisis.py"]
-        core --> charts["Plotly + tablas + mapas de calor"]
+        dist --> app["app.js<br/>rutas y cabecera"]
+        app --> vistas["vistas.js<br/>una funcion por vista"]
+        vistas --> charts["graficos.js<br/>Plotly"]
     end
 ```
 
-El nucleo analitico existe dos veces, deliberadamente: en Python para generar
-las vistas predeterminadas y en JavaScript para recalcularlas cuando cambia un
-filtro. Las pruebas de paridad comparan ambas salidas en cada ejecucion de CI,
-de modo que no pueden divergir en silencio.
+El navegador no contiene logica analitica: si un numero aparece en pantalla, lo
+calculo Python durante la construccion. Eso hace que la unica implementacion del
+analisis sea la que esta bajo prueba.
 
 ### Responsabilidad de cada modulo
 
@@ -145,26 +137,22 @@ de modo que no pueden divergir en silencio.
 | `src/datos.py` | Lee CSV como texto, valida OHLCV, separa filas invalidas, convierte UTC y calcula retornos por vela. |
 | `src/analisis.py` | Agrega periodos y calcula estadistica descriptiva, estacionalidad, IQR, matrices y extremos. |
 | `src/vistas.py` | Transformaciones puras de cada vista, sin capa de presentacion. |
-| `src/exportador.py` | Construye el contrato JSON: manifiesto, informes, series columnares y tablas de zona horaria. |
+| `src/exportador.py` | Construye el contrato JSON: manifiesto e informes con las nueve vistas ya calculadas. |
 | `src/cache.py` | Firma datos y configuracion y verifica integridad con SHA-256. |
 | `tools/build_web.py` | Genera `dist/` completo. |
 | `tools/check_dist.py` | Valida presupuestos, enlaces, JSON estricto y ausencia de rutas absolutas. |
 | `tools/serve.py` | Sirve `dist/` en local bajo el mismo prefijo que GitHub Pages. |
-| `tools/generar_paridad_filtros.py` | Genera las fixturas doradas de filtros no predeterminados. |
 
 **Ejecucion (JavaScript vanilla, sin dependencias de tiempo de ejecucion):**
 
 | Componente | Responsabilidad |
 |---|---|
-| `web/index.html` | Estructura semantica, panel de filtros y contenedor de vistas. |
-| `web/assets/app.css` | Temas claro y oscuro, disposicion responsive. |
-| `web/assets/app.js` | Arranque, catalogo, navegacion, tema y orquestacion del worker. |
-| `web/assets/estado.js` | Estado, enrutado por hash y serializacion de filtros en la URL. |
-| `web/assets/worker.js` | Descarga, decodifica y recalcula las vistas fuera del hilo principal. |
-| `web/assets/analytics/*.js` | Espejo exacto del nucleo analitico de Python. |
-| `web/assets/vistas/*.js` | Renderizado de cada vista. |
+| `web/index.html` | Cabecera, pestanas de instrumento y de vista, contenedor. |
+| `web/assets/app.css` | Paleta oscura y tipografia monoespaciada; responsive. |
+| `web/assets/app.js` | Arranque, enrutado por hash y cabecera del instrumento. |
+| `web/assets/vistas.js` | Una funcion por vista; solo presentacion. |
 | `web/assets/graficos.js` | Envoltorio de Plotly 2.35.2 vendorizado, sin CDN. |
-| `web/tests/` | Pruebas de paridad Python/JavaScript con `node --test`. |
+| `web/assets/ui.js` | Formato numerico y calendario del mercado. |
 | `.github/workflows/pages.yml` | Construye, verifica, valida y despliega en GitHub Pages. |
 
 ### Estructura del repositorio
@@ -184,16 +172,12 @@ seasonal-market-dashboard/
 |   |-- assets/
 |   |   |-- app.css
 |   |   |-- app.js
-|   |   |-- estado.js
 |   |   |-- graficos.js
 |   |   |-- ui.js
-|   |   |-- worker.js
-|   |   |-- analytics/        nucleo analitico en JavaScript
-|   |   |-- vistas/           renderizado de cada vista
+|   |   |-- vistas.js
 |   |   `-- vendor/           plotly-2.35.2.min.js
-|   `-- tests/                pruebas de paridad (node --test)
-|-- tools/                    build_web, check_dist, serve, fixturas
-|-- tests/                    pruebas de Python + fixturas doradas
+|-- tools/                    build_web, check_dist, serve
+|-- tests/                    pruebas de Python
 |-- docs/                     PARIDAD.md, CONTRATO_JSON.md, imagenes
 |-- dist/                     artefacto generado (no versionado)
 |-- .github/workflows/pages.yml
@@ -214,24 +198,17 @@ seasonal-market-dashboard/
 4. Los timestamps se conservan en UTC y se convierten a la zona IANA del
    mercado para el analisis local.
 5. Se calcula el retorno de cada vela desde `open` y `close`.
-6. `vistas.py` aplica la sesion declarada y calcula las diez vistas
-   predeterminadas.
-7. `exportador.py` las serializa junto con las series fragmentadas por ano y la
-   tabla de transiciones de la zona del mercado.
+6. `vistas.py` aplica la sesion declarada y calcula las nueve vistas.
+7. `exportador.py` las serializa en un unico `report.json` por instrumento.
 8. `tools/build_web.py` escribe `dist/` y `tools/check_dist.py` lo valida.
 
 A partir de aqui **no interviene Python**. En el navegador:
 
-9. `app.js` lee `manifest.json` y pinta el catalogo precalculado.
-10. Al elegir un activo se descargan su informe y sus series por ano; las vistas
-    predeterminadas se pintan de inmediato desde `report.json`.
-11. Cualquier cambio de filtro se envia al Web Worker, que recalcula las nueve
-    cargas analiticas sobre los indices de la serie ya decodificada.
+9. `app.js` lee `manifest.json` y pinta las pestanas de instrumento.
+10. Al elegir uno se descarga su unico `report.json` y se dibuja la vista.
 
-No hay llamadas de red a servicios de mercado en ningun punto del flujo.
-**Recargar version publicada** vuelve a pedir el manifiesto y **Limpiar cache
-local** vacia lo que la aplicacion haya guardado en el navegador; ninguno de los
-dos descarga precios nuevos.
+No hay llamadas de red a servicios de mercado en ningun punto del flujo, ni
+almacenamiento en el navegador.
 
 ### Actualizacion de los datos
 
@@ -323,11 +300,11 @@ debe describirse como una serie perfectamente continua.
 
 Existen dos mecanismos distintos, y conviene no confundirlos.
 
-**Invalidacion del sitio publicado.** Cada `report.json` y cada fragmento de
-serie lleva un **hash de contenido en el nombre**, asi que un archivo nuevo
-nunca reutiliza la respuesta cacheada del anterior. `manifest.json` es el unico
-recurso sin hash y se pide con `cache: "no-cache"`. El manifiesto declara
-ademas `contentHash` y `processingVersion` del conjunto completo.
+**Invalidacion del sitio publicado.** Cada `report.json` lleva un **hash de
+contenido en el nombre**, asi que un archivo nuevo nunca reutiliza la respuesta
+cacheada del anterior. `manifest.json` es el unico recurso sin hash y se pide
+con `cache: "no-cache"`. El manifiesto declara ademas `contentHash` y
+`processingVersion` del conjunto completo.
 
 **Cache Parquet de construccion (`src/cache.py`).** Firma el CSV y
 `activos.json` por ruta, tamano, fecha de modificacion y SHA-256, mas una
@@ -335,27 +312,25 @@ version explicita de procesamiento; escribe con archivos temporales y
 reemplazo atomico, e invalida cualquier pareja incompleta o corrupta.
 
 > Este segundo mecanismo existia para acelerar los *reruns* de Streamlit. El
-> generador estatico lee cada CSV una sola vez, asi que ya **no forma parte de
-> la ruta de construccion**. El modulo se conserva con su cobertura de pruebas
-> intacta; retirarlo seria un cambio independiente de esta migracion.
+> generador lee cada CSV una sola vez, asi que ya **no forma parte de la ruta de
+> construccion**. El modulo se conserva con su cobertura de pruebas intacta;
+> retirarlo seria un cambio independiente.
 
 ## Tecnologias
 
 | Area | Tecnologia |
 |---|---|
 | Interfaz | HTML semantico, CSS responsive, JavaScript vanilla (ES Modules) |
-| Calculo en cliente | Web Worker, arrays tipados |
+| Calculo | Integramente en construccion: Python, Pandas, NumPy |
 | Visualizacion | Plotly.js 2.35.2 vendorizado (sin CDN) |
-| Construccion | Python, Pandas, NumPy |
-| Contrato de datos | JSON estricto versionado, columnar y fragmentado por ano |
-| Zonas horarias | `zoneinfo`, `tzdata` y tabla de transiciones publicada |
-| Pruebas | Pytest y el ejecutor nativo de Node (`node --test`) |
+| Contrato de datos | JSON estricto versionado, con las vistas ya calculadas |
+| Zonas horarias | `zoneinfo` y `tzdata` en construccion; epoch local al publicar |
+| Pruebas | Pytest |
 | Alojamiento | GitHub Pages |
 | Integracion continua | GitHub Actions |
 
-Sin React, Vue, Angular ni Streamlit en tiempo de ejecucion. Sin dependencias de
-npm y sin peticiones a terceros: todos los recursos se sirven desde el propio
-sitio.
+Sin React, Vue, Angular ni Streamlit. Sin dependencias de npm y sin peticiones a
+terceros: todos los recursos se sirven desde el propio sitio.
 
 ## Despliegue
 
@@ -364,9 +339,8 @@ El sitio se publica automaticamente en
 `.github/workflows/pages.yml`:
 
 1. Push a `main` (o ejecucion manual desde la pestana **Actions**).
-2. El workflow instala Python 3.13 y Node 22, ejecuta las pruebas de Python,
-   genera `dist/`, lo valida con `check_dist.py` y ejecuta las pruebas de
-   paridad de JavaScript contra los datos recien generados.
+2. El workflow instala Python 3.13, ejecuta las pruebas, genera `dist/` y lo
+   valida con `check_dist.py`.
 3. Sube el artefacto con `actions/upload-pages-artifact` y despliega con
    `actions/deploy-pages`, en el entorno `github-pages`.
 
@@ -416,8 +390,8 @@ python tools/serve.py              # sirve dist/ en http://127.0.0.1:8000/season
 es la unica forma fiable de detectar una ruta absoluta que solo funcionaria en
 la raiz. Con `--raiz` se comprueba tambien que funciona servido en `/`.
 
-> No abra `index.html` con `file://`: los modulos ES, `fetch` y los Web Workers
-> exigen un origen HTTP real.
+> No abra `index.html` con `file://`: los modulos ES y `fetch` exigen un origen
+> HTTP real.
 
 Opciones utiles durante el desarrollo:
 
@@ -427,20 +401,17 @@ python tools/build_web.py --solo-datos              # regenera dist/data sin rec
 python tools/serve.py --raiz --abrir                # sirve en / y abre el navegador
 ```
 
-La generacion completa tarda **menos de dos minutos** y produce unos **16 MB**
-de datos, muy por debajo del limite de 1 GB de GitHub Pages.
+La generacion completa tarda **menos de dos minutos** y produce un artefacto de
+**5,7 MB**, del que 4,35 MB son la biblioteca de graficos: los ocho informes
+suman 1,3 MB.
 
 ## Pruebas y CI
 
 ```powershell
-python -m pytest -q                        # nucleo Python
-node --test "web/tests/**/*.test.js"       # paridad Python/JavaScript
+python -m pytest -q
 ```
 
-Las pruebas de JavaScript necesitan `dist/` generado; si no existe, se saltan
-con un aviso en lugar de fallar.
-
-**Pruebas de Python (101 casos):**
+**94 casos** que cubren:
 
 - configuraciones validas, invalidas y modo tolerante;
 - contrato CSV, OHLC, duplicados, retornos y metadata derivada;
@@ -449,23 +420,16 @@ con un aviso en lugar de fallar.
 - cobertura `24/7` y `24/5`;
 - firmas, roundtrip e invalidacion de cache corrupta;
 - transformaciones de vista extraidas de la capa de presentacion;
-- contrato JSON: saneamiento estricto, codificacion exacta de precios,
-  fragmentado por ano y ausencia de rutas absolutas.
+- contrato JSON: saneamiento estricto, epochs independientes de la resolucion
+  interna de pandas, forma de cada vista y ausencia de rutas absolutas.
 
-**Pruebas de JavaScript:**
-
-- `web/tests/paridad.test.js` recalcula las diez vistas de los ocho activos y
-  las compara, campo a campo, con las que genero Python en `dist/`;
-- `web/tests/filtros.test.js` compara catorce configuraciones de filtros no
-  predeterminados por activo mediante un digesto numerico sensible al orden.
-
-La tolerancia aceptada esta documentada en `docs/PARIDAD.md` seccion 2.5:
-**1e-9 absoluta o 1e-12 relativa** para valores en puntos porcentuales, y
-exactitud binaria para precios, conteos, marcas de tiempo y banderas.
+No hay pruebas de JavaScript porque el navegador no calcula: dibuja lo que el
+JSON trae. `tools/check_dist.py` comprueba ademas que cada informe publicado
+lleve las nueve vistas.
 
 GitHub Actions ejecuta todo lo anterior en cada push y pull request a `main`.
-No hay pruebas de navegador end-to-end automatizadas; la verificacion de las
-diez vistas en escritorio y movil se realiza de forma manual antes de publicar.
+La verificacion visual de las nueve vistas en escritorio y movil se hace a mano
+antes de publicar.
 
 ## Como agregar un activo
 
@@ -502,51 +466,52 @@ Resumen:
 
 ```text
 dist/data/
-|-- manifest.json                       catalogo, versiones, hash y zonas horarias
+|-- manifest.json              catalogo minimo: instrumentos, rango y enlaces
 |-- BTCUSDT/
-|   |-- report.<hash>.json              calidad + las diez vistas predeterminadas
-|   |-- series-2017.<hash>.json         velas del ano, columnares
-|   `-- ...
+|   `-- report.<hash>.json     las nueve vistas ya calculadas
 `-- ...
 ```
 
-- **`schemaVersion`** actual: `1`. Cada archivo la declara.
+- **`schemaVersion`** actual: `2`. Cada archivo la declara.
 - **JSON estricto**: no se emiten `NaN` ni infinitos; todo valor no finito viaja
   como `null`.
-- **Columnar y fragmentado por ano**: las 604.111 velas nunca se publican en un
-  unico archivo. Solo se descarga el activo seleccionado.
-- **Precios exactos**: se codifican como enteros escalados con deltas, y la
-  escala solo se acepta tras verificar que `round(valor*escala)/escala == valor`
-  para cada valor y que el entero cabe por debajo de `2^53`. La reconstruccion
-  en el navegador es **bit a bit identica** al doble que obtuvo Python.
-- **Tiempo sin ambiguedad**: cada marca viaja como instante absoluto y epoch
-  local. El manifiesto incluye la tabla de transiciones de la zona IANA del
-  mercado, de modo que un dia con cambio de horario mide correctamente 23 o 25
-  horas. **La zona horaria del navegador nunca interviene.**
-- **Invalidacion de cache**: cada archivo lleva un hash de contenido en el
+- **Solo lo que se dibuja**: cada fila estacional lleva la clave del eje, el
+  promedio y el tamano de muestra. No se publican las velas base.
+- **Un archivo por instrumento**: solo se descarga el seleccionado.
+- **Tiempo sin ambiguedad**: las marcas que se dibujan viajan como *epoch local*
+  del mercado (instante absoluto mas desplazamiento). El cliente deriva la fecha
+  con aritmetica civil exacta, sin construir un `Date`. **La zona horaria del
+  navegador nunca interviene.**
+- **Invalidacion de cache**: cada informe lleva un hash de contenido en el
   nombre; solo `manifest.json` se pide con `cache: "no-cache"`.
+
+El detalle completo esta en [`docs/CONTRATO_JSON.md`](docs/CONTRATO_JSON.md).
 
 ## Diferencias conocidas respecto a la version Streamlit
 
-La migracion busco **paridad primero**: `docs/PARIDAD.md` fija el comportamiento
-efectivo del codigo original, incluidas sus ambiguedades (A-1 a A-12), y las
-pruebas verifican que se conservan. Las unicas desviaciones deliberadas son las
-que impone un sitio sin backend:
+`docs/PARIDAD.md` fija el comportamiento efectivo del codigo original, incluidas
+sus ambiguedades (A-1 a A-12), y las pruebas verifican que el nucleo las
+conserva. Lo que cambia es el alcance de la interfaz:
 
 | Antes | Ahora | Motivo |
 |---|---|---|
-| Boton **Actualizar datos y cache** | **Recargar version publicada** y **Limpiar cache local** | GitHub Pages no ejecuta Python; no hay nada que reprocesar en vivo. |
-| Catalogo validado en cada carga | Catalogo precalculado en `manifest.json` | Evita revalidar ocho CSV en el navegador. |
-| Tabla completa de filas invalidas | Conteos y motivos agregados en `report.json` | El detalle fila a fila no viaja al cliente. |
-| Estado en `st.session_state` | Estado en la URL (`#/SIMBOLO/vista?filtros`) | Permite compartir una vista filtrada por enlace. |
+| Sesion declarada, observada o personalizada | Solo la declarada | El sitio es de lectura; el analisis se publica ya calculado. |
+| Filtro IQR, metrica de matriz y ranking configurables | Valores fijos (ver `PARIDAD.md` 1.3) | Cada control obligaba a recalcular en el navegador. |
+| Vista «Calidad de datos» | No se publica | Era una tabla de conteos, no una visualizacion. |
+| Tablas de estadisticas bajo cada vista | Solo graficos | Peticion explicita: menos saturacion. |
+| Tema claro y oscuro | Solo oscuro | Identidad de terminal de mercado. |
+| Boton «Actualizar datos y cache» | Ninguna accion | No hay nada que reprocesar en vivo. |
+| Estado en `st.session_state` | Estado en la URL (`#/SIMBOLO/vista`) | Cualquier vista es enlazable. |
 
-Ademas, la version estatica **anade** una tabla de estadisticas descriptivas
-bajo cada vista estacional y una tabla de valores bajo la matriz, que en
-Streamlit solo existian como grafico.
+Los modos de sesion y los filtros siguen implementados y probados en
+`src/vistas.py`: definen la semantica de lo que se publica, aunque no se
+expongan como control.
 
 ## Limitaciones
 
 - El sitio no descarga datos: publica un snapshot generado en la construccion.
+- No es interactivo: no se pueden cambiar sesion, filtros ni metricas desde la
+  pagina. Cambiarlos exige regenerar y volver a desplegar.
 - No hay pruebas de navegador end-to-end automatizadas.
 - Las coberturas historicas y los tamanos de muestra difieren entre activos.
 - No se implementan calendarios bursatiles, festivos ni cierres anticipados.

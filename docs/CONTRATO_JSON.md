@@ -1,20 +1,19 @@
 # Contrato JSON del sitio estático
 
-`schemaVersion` actual: **1**
+`schemaVersion` actual: **2**
 
-Los JSON de `cache/` (índices de Parquet, estructuras internas de Python) **no
-se reutilizan**. Este es un esquema web explícito, versionado y estable.
+El sitio **solo dibuja**. Cada vista viaja ya calculada desde Python, así que el
+contrato publica resultados agregados y no series de velas.
 
 ## Reglas generales
 
 - JSON estricto: sin `NaN`, `Infinity` ni `-Infinity`. Todo valor no finito se
   serializa como `null`.
-- Formato columnar (arrays paralelos) en las series y en las tablas grandes.
-- Series fragmentadas por **activo y año**.
+- Cada campo publicado se dibuja. No se exporta nada «por si acaso».
 - Nunca se publican rutas absolutas del sistema de archivos.
-- Cada archivo lleva un hash de contenido en el nombre; `manifest.json` es el
+- `report.json` lleva un hash de contenido en el nombre; `manifest.json` es el
   único recurso sin hash y se solicita con `cache: "no-cache"`.
-- Solo se descarga el activo seleccionado.
+- Solo se descarga el informe del instrumento seleccionado.
 
 ## Estructura
 
@@ -24,27 +23,27 @@ dist/
 ├── .nojekyll
 ├── assets/
 │   ├── app.css
-│   ├── app.js
-│   ├── worker.js
-│   ├── analytics/*.js
+│   ├── app.js          arranque, rutas y cabecera
+│   ├── ui.js           formato y calendario del mercado
+│   ├── graficos.js     envoltorio de Plotly
+│   ├── vistas.js       una función por vista
 │   └── vendor/plotly-2.35.2.min.js
 └── data/
     ├── manifest.json
-    ├── BTCUSDT/
-    │   ├── report.<hash>.json
-    │   ├── series-2017.<hash>.json
-    │   └── ...
+    ├── BTCUSDT/report.<hash>.json
     └── ...
 ```
 
 ## `manifest.json`
 
+Catálogo mínimo: lo que necesitan las pestañas y la cabecera.
+
 ```jsonc
 {
-  "schemaVersion": 1,
-  "processingVersion": "1.0.0",   // versión del generador
-  "generatedAt": "2026-08-29T12:34:56Z",
-  "contentHash": "…",             // hash del conjunto completo
+  "schemaVersion": 2,
+  "processingVersion": "2.0.0",
+  "generatedAt": "2026-08-29T19:31:22+00:00",
+  "contentHash": "…",
   "sourceRowCount": 604111,
   "categories": { "crypto": "Criptomonedas", … },
   "assets": [
@@ -53,154 +52,87 @@ dist/
       "nombre": "Bitcoin / USDT",
       "categoria": "crypto",
       "mercado": "Binance Spot",
-      "sesion": "24/7",
       "zonaHoraria": "UTC",
       "temporalidad": "1h",
-      "tipoTimestamp": "instante_utc",
-      "formulaRetorno": "(close_final / open_inicial - 1) * 100",
-      "archivo": "BTCUSDT_1h.csv",       // solo el nombre, nunca la ruta
       "intradia": true,
       "baseMinutes": 60,
-      "sesionReconocida": "24/7",        // null si la etiqueta no se reconoce (A-3)
       "primeraFecha": "2017-08-17T04:00:00+00:00",
       "ultimaFecha": "2026-07-26T16:00:00+00:00",
-      "filasTotales": 78246,
       "filasValidas": 78245,
-      "porcentajeValido": 99.99,
-      "cobertura": { "disponible": true, "porcentaje": 99.83, … },
-      "years": [2017, 2018, …],
       "report": "BTCUSDT/report.a1b2c3d4.json",
-      "series": { "2017": "BTCUSDT/series-2017.e5f6…json", … },
-      "bytes": { "report": 51234, "series": 1234567 },
-      "tz": {
-        "name": "UTC",
-        "initialOffset": 0,
-        "initialAbbr": "UTC",
-        "transitions": [[epochUTC, offsetSegundos, "EDT"], …]
-      }
+      "bytes": 162880
     }
   ]
 }
 ```
 
-`transitions` cubre el rango de datos del activo más un año de margen a cada
-lado. Permite convertir hora local a instante absoluto sin usar la zona horaria
-del navegador. La abreviatura (`EST`, `EDT`, `JST`, `UTC`…) se publica para poder
-etiquetar las fechas igual que hacía Streamlit.
-
-## `series-<AÑO>.<hash>.json`
-
-Velas base del año, en hora local del mercado, formato columnar.
-
-```jsonc
-{
-  "schemaVersion": 1,
-  "symbol": "XAUUSD",
-  "year": 2003,
-  "count": 5678,
-  "scale": 1000,        // null => precios en punto flotante literal
-  "t0": 1052092800,     // epoch UTC de la primera vela, en segundos
-  "dt": [0, 3600, …],   // deltas de epoch UTC en segundos (acumulativos)
-  "off": [[0, -14400], [3542, -18000]],  // [índiceInicial, offsetSegundos] RLE
-  "o": [340345, 116, …], // primer valor absoluto (entero escalado), resto deltas
-  "h": [...], "l": [...], "c": [...]
-}
-```
-
-- Cuando `scale` es un entero, el precio real es `valorAcumulado / scale`. La
-  división de un entero exacto por una potencia de diez está correctamente
-  redondeada en IEEE-754, así que reproduce **bit a bit** el doble que Python
-  obtiene al parsear el CSV.
-- La escala se elige como la menor potencia de diez (hasta `10^12`) que
-  reproduzca **exactamente** todos los precios, y solo se acepta tras verificar
-  elemento a elemento que `round(valor·escala) / escala == valor` y que el
-  entero resultante cabe por debajo de `2^53`. Con los ocho CSV actuales las
-  ocho series obtienen escala: de `10^2` en `BTCUSDT` a `10^11` en los índices
-  de Yahoo, cuyos precios traen muchos decimales.
-- `scale` es `null` cuando esa comprobación no pasa. En ese caso los arrays
-  contienen dobles literales, sin delta, y el decodificador los usa tal cual.
-- `volume` no se publica: ninguna vista lo analiza.
-
 ## `report.<hash>.json`
 
-Metadatos del activo y **vistas predeterminadas precalculadas** por Python
-(sesión `Declarada`, IQR desactivado). El cliente las pinta de inmediato; el
-Web Worker recalcula al cambiar cualquier filtro.
-
 ```jsonc
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "processingVersion": "2.0.0",
   "symbol": "XAUUSD",
-  "generatedAt": "…",
-  "calidad": {
-    "filasTotales": 140353, "filasValidas": 140352, "filasInvalidas": 1,
-    "fechaInicial": "2003-05-04T20:00:00-04:00",
-    "fechaFinal": "2026-07-24T16:00:00-04:00",
-    "velasUtilizadas": 140352,
-    // Los conteos de cobertura, sin la lista completa de intervalos ausentes:
-    // puede tener miles de marcas y ninguna vista la usa. Se conserva una
-    // muestra de diez en "muestraFaltantes".
-    "cobertura": { "disponible": true, "porcentaje": 99.84, "faltantes": 128, … },
-    "motivosInvalidez": { "duplicado; se conserva la primera aparicion": 1 },
-    "advertencias": [ … ]
-  },
-  "sesionPorDefecto": { "modo": "Declarada", "detalle": "…", "filtrado": false },
-  "observado": { "dias": [0,1,2,3,4], "horas": [0,1,…,23] },
-  "defaultViews": {
-    "resumen": { … }, "periodo": { … }, "mensual": { … },
-    "semanal": { … }, "diaSemana": { … }, "diaria": { … },
-    "horaria": { … }, "matriz": { … }, "extremos": { … }
+  "vistas": {
+    "resumen":   { "metricas": {…}, "velas": {…} },
+    "periodo":   { "anual": […], "pivote": { "años": […], "meses": [[…12]] } },
+    "mensual":   { "estacional": […], "curvas": […] },
+    "semanal":   { "estacional": […], "promedioGeneral": 0.12 },
+    "diaSemana": { "estacional": […], "trayectorias": […] },
+    "diaria":    { "estacional": […] },
+    "horaria":   { "disponible": true, "estacional": […], "curvas": […] },
+    "matriz":    { "disponible": true, "dias": […], "horas": […], "valores": [[…]] },
+    "extremos":  { "periodo": "Día", "filas": […] }
   }
 }
 ```
 
-### Convención de nombres
+### Filas estacionales
 
-La **envoltura** (metadatos, enlaces, versiones) usa `camelCase`. Las **cargas
-analíticas** conservan los nombres de campo de Python (`numero_mes`,
-`positivo_pct`, `return_percent`…), de modo que la correspondencia entre
-`exportador.vista_*` y su espejo en JavaScript es literal y las pruebas de
-paridad pueden compararlas término a término.
+Cada fila lleva solo la clave del eje, el promedio y el tamaño de muestra:
+
+```jsonc
+{ "numero_mes": 1, "promedio": 1.774, "n": 3 }
+```
+
+Las claves de eje son `numero_mes`, `semana_iso`, `numero_dia`, `dia_mes` u
+`hora`, según la vista. Se conservan los nombres de campo de Python para que la
+correspondencia con `exportador.vista_*` sea literal.
+
+### Curvas
+
+```jsonc
+{ "clave": 3, "dia_mes": [1, 2, 3, …], "retorno": [0.1, null, 0.4, …] }
+```
+
+`clave` es el mes (1-12) o el día de la semana (0 = lunes). El eje es `dia_mes`
+o `hora`. Un hueco se publica como `null` y el gráfico no lo interpola.
 
 ### Tiempo
 
-Las vistas nunca publican fechas con formato. Cada marca viaja como dos enteros:
+Las vistas nunca publican fechas con formato. Cada marca viaja como **epoch
+local del mercado** (`instante absoluto + desplazamiento UTC`), en segundos:
 
-- `inicio` / `fin`: instante absoluto en segundos desde la época.
-- `inicioLocal` / `finLocal`: epoch local (`instante + desplazamiento`).
+- `resumen.velas.lt` para el eje del gráfico de precio.
+- `extremos.filas[].inicioLocal` para las etiquetas del ranking.
 
-El cliente deriva de ahí año, mes, día, hora y día de la semana; el
-desplazamiento se recupera restando ambos valores. Así ninguna de las dos
-implementaciones depende de un analizador de cadenas ni de la zona horaria del
-navegador. `resumen.velas` publica `t` (absoluto) y `lt` (local) en paralelo.
+El cliente deriva año, mes, día, hora y minuto con aritmética civil exacta, sin
+construir un solo `Date`. **La zona horaria del navegador nunca interviene.**
 
-### Pruebas de paridad
+### Velas del gráfico de precio
 
-- `web/tests/paridad.test.js` compara **carga completa** contra `defaultViews`
-  de cada `report.json`, con la tolerancia de `PARIDAD.md` §2.5.
-- `web/tests/filtros.test.js` compara un **digesto numérico** (conteos, suma,
-  mínimo, máximo y una suma ponderada por posición, sensible a reordenaciones)
-  para catorce configuraciones de filtros no predeterminados por activo,
-  generado con `python tools/generar_paridad_filtros.py`.
+`resumen.velas` trae la serie ya reducida a un máximo de **3 000** bloques OHLC
+(`open` primero, `high` máximo, `low` mínimo, `close` último), que es todo lo
+que el gráfico puede dibujar con sentido. `resumido` indica si hubo reducción.
 
 ## Presupuestos
 
-| Presupuesto | Límite | Medido | Verificado por |
-|---|---|---|---|
-| Tamaño total del sitio | 200 MB (límite duro de Pages: 1 GB) | **20,5 MB** (145 archivos) | `tools/check_dist.py` |
-| Carga inicial (shell + manifiesto, sin comprimir) | 6 MB | **4,50 MB** | `tools/check_dist.py` |
-| Mayor fragmento individual | 8 MB | **4,35 MB** (Plotly) | `tools/check_dist.py` |
-| Tiempo de generación | 10 min (límite de Pages) | **110 s** | workflow |
-| Cambio de activo en frío (139 k velas) | < 2 s | **1,35 s** local · **1,96 s** en Pages | verificación manual |
-| Cambio de activo en caliente (140 k velas) | < 2 s | **0,94 s** local · **1,01 s** en Pages | verificación manual |
-| Cambio de vista con recálculo | < 2 s | **1,00 s** en ambos | verificación manual |
-| Memoria del hilo principal, activo mayor | < 200 MB | **20 MB** | verificación manual |
+| Presupuesto | Límite | Medido |
+|---|---|---|
+| Tamaño del artefacto | 200 MB (Pages: 1 GB) | **5,7 MB** en 18 archivos |
+| Carga inicial | 6 MB | **4,4 MB**, de los que 4,35 MB son Plotly |
+| Mayor informe | 1 MB | **204 KB** (`SP500`) |
+| Tiempo de generación | 10 min (Pages) | **99 s** |
 
-Las cifras «en Pages» se midieron sobre el sitio publicado, no en localhost. La
-**primera** carga de la página es mayor (~3,4 s hasta la primera vista) porque
-incluye descargar el bundle de Plotly; a partir de ahí queda en la caché del
-navegador y los cambios de activo se mueven en el rango de la tabla.
-
-El mayor fragmento es la biblioteca de gráficos, no un archivo de datos: el
-mayor JSON de series ronda los 250 KB. Se eligió el bundle completo de Plotly
-porque ningún bundle parcial incluye a la vez mapas de calor y velas.
+El artefacto está dominado por la biblioteca de gráficos, no por los datos: los
+ocho informes suman 1,3 MB.
