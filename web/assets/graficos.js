@@ -44,22 +44,36 @@ function reajustar(nodo) {
   aplicarEtiquetas(nodo);
 }
 
+/** Ancho que necesita la etiqueta mas larga, en una fuente monoespaciada. */
+function anchoNecesario(textos, tamano) {
+  let maximo = 0;
+  for (const fila of textos) {
+    for (const texto of fila) if (texto.length > maximo) maximo = texto.length;
+  }
+  return maximo * tamano * 0.62 + 10;
+}
+
 /**
- * Muestra el valor dentro de cada celda solo si la celda es lo bastante ancha.
+ * Elige que etiqueta cabe en cada celda del mapa de calor.
  *
- * Plotly no recorta ni oculta el texto de un mapa de calor que no cabe: lo
- * superpone. Con muchas columnas en una pantalla estrecha eso es ilegible, asi
- * que la decision se rehace en cada reajuste.
+ * Plotly no recorta ni oculta el texto que no cabe: lo superpone. Se prueba
+ * primero el valor con su unidad, luego el valor a secas -- la unidad ya consta
+ * en la cabecera de la tarjeta -- y, si tampoco cabe, se deja solo el color. La
+ * decision se rehace en cada reajuste para que al girar el movil siga siendo
+ * legible.
  */
 function aplicarEtiquetas(nodo) {
   const cfg = nodo.__etiquetas;
   if (!cfg || !window.Plotly) return;
-  const cabe = nodo.clientWidth / cfg.columnas >= cfg.anchoMinimo;
-  if (cabe === cfg.visibles) return;
-  cfg.visibles = cabe;
+  const celda = nodo.clientWidth / cfg.columnas;
+  const eleccion = celda >= cfg.anchoConUnidad ? 'conUnidad'
+    : (celda >= cfg.anchoSinUnidad ? 'sinUnidad' : 'ninguna');
+  if (eleccion === cfg.eleccion) return;
+  cfg.eleccion = eleccion;
+  const textos = eleccion === 'ninguna' ? null : cfg[eleccion];
   window.Plotly.restyle(nodo, {
-    text: [cabe ? cfg.textos : null],
-    texttemplate: cabe ? '%{text}' : null,
+    text: [textos],
+    texttemplate: textos ? '%{text}' : null,
   }, [0]);
 }
 
@@ -313,7 +327,7 @@ export function velas(datos, { titulo = 'Precio', unidad = '', altura = 400 } = 
  */
 export function mapaCalor(datos, {
   titulo, unidad = '%', altura = 420, centro = 0, decimales = 2,
-  etiquetas = true, escalaVisible = true, tamanoTexto = 10, anchoMinimoCelda = 54,
+  etiquetas = true, escalaVisible = true, tamanoTexto = 10,
 } = {}) {
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
@@ -352,15 +366,27 @@ export function mapaCalor(datos, {
         [0.75, '#1f6b62'], [1, '#1fae9a'],
       ];
 
-    const textos = etiquetas ? datos.z.map((fila) => fila.map(
-      (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(decimales)}${unidad}` : ''),
-    )) : null;
-    const caben = textos !== null
-      && nodo.clientWidth / Math.max(1, datos.x.length) >= anchoMinimoCelda;
-    if (textos !== null) {
-      nodo.__etiquetas = {
-        textos, columnas: datos.x.length, anchoMinimo: anchoMinimoCelda, visibles: caben,
+    const formatear = (sufijo) => datos.z.map((fila) => fila.map(
+      (v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(decimales)}${sufijo}` : ''),
+    ));
+    let textos = null;
+    if (etiquetas) {
+      const conUnidad = formatear(unidad);
+      const sinUnidad = formatear('');
+      const columnas = Math.max(1, datos.x.length);
+      const cfg = {
+        conUnidad,
+        sinUnidad,
+        columnas,
+        anchoConUnidad: anchoNecesario(conUnidad, tamanoTexto),
+        anchoSinUnidad: anchoNecesario(sinUnidad, tamanoTexto),
+        eleccion: null,
       };
+      const celda = nodo.clientWidth / columnas;
+      cfg.eleccion = celda >= cfg.anchoConUnidad ? 'conUnidad'
+        : (celda >= cfg.anchoSinUnidad ? 'sinUnidad' : 'ninguna');
+      nodo.__etiquetas = cfg;
+      textos = cfg.eleccion === 'ninguna' ? null : cfg[cfg.eleccion];
     }
 
     Plotly.newPlot(nodo, [{
@@ -368,8 +394,8 @@ export function mapaCalor(datos, {
       x: datos.x,
       y: datos.y,
       z: datos.z,
-      text: caben ? textos : undefined,
-      texttemplate: caben ? '%{text}' : undefined,
+      text: textos ?? undefined,
+      texttemplate: textos ? '%{text}' : undefined,
       textfont: { size: tamanoTexto, family: FUENTE, color: '#e9ecf2' },
       colorscale: escala,
       zmid: centro === null ? undefined : centro,

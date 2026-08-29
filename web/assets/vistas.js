@@ -142,7 +142,6 @@ function diaria({ vistas }) {
         altura: 118,
         escalaVisible: false,
         tamanoTexto: 9,
-        anchoMinimoCelda: 42,
       },
     ),
   ]);
