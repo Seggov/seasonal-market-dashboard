@@ -144,6 +144,35 @@ function esperarAncho(nodo, intentos = 60) {
 }
 
 /**
+ * Marca con un contorno la celda del mapa de calor bajo el cursor.
+ *
+ * Plotly no resalta la celda apuntada, y en una rejilla de mas de cien celdas
+ * cuesta saber cual esta describiendo el tooltip. Con ejes categoricos la
+ * coordenada de cada celda es su indice, asi que basta un rectangulo de media
+ * celda a cada lado.
+ */
+function resaltarCelda(Plotly, nodo) {
+  const limpiar = () => Plotly.relayout(nodo, { shapes: [] });
+  nodo.on('plotly_hover', (evento) => {
+    const punto = evento.points?.[0];
+    if (!punto || !Array.isArray(punto.pointIndex)) return;
+    const [fila, columna] = punto.pointIndex;
+    Plotly.relayout(nodo, {
+      shapes: [{
+        type: 'rect',
+        x0: columna - 0.5, x1: columna + 0.5,
+        y0: fila - 0.5, y1: fila + 0.5,
+        line: { color: '#e9ecf2', width: 1.5 },
+        fillcolor: 'rgba(0,0,0,0)',
+        layer: 'above',
+      }],
+    });
+  });
+  nodo.on('plotly_unhover', limpiar);
+  nodo.addEventListener('mouseleave', limpiar);
+}
+
+/**
  * Tarjeta con cabecera y lienzo.
  */
 function tarjeta(dibujar, altura, titulo, unidad) {
@@ -214,7 +243,7 @@ export function barrasH(y, x, { titulo, unidad = '%', altura = 380 } = {}) {
       textposition: 'outside',
       textfont: { size: 10, color: COLOR.texto },
       cliponaxis: false,
-      hovertemplate: '%{y}   %{x:.2f}%<extra></extra>',
+      hovertemplate: '<b>%{y}</b>   %{x:.2f}%<extra></extra>',
     }], l, CONFIG);
   }, altura, titulo, unidad);
 }
@@ -343,7 +372,8 @@ export function mapaCalor(datos, {
       xgap: 2,
       ygap: 2,
       hoverongaps: false,
-      hovertemplate: `%{y} · %{x}   %{z:.${decimales}f}${unidad}<extra></extra>`,
-    }], l, CONFIG);
+      hovertemplate:
+        `<b>%{x} · %{y}</b><br>%{z:.${decimales}f}${unidad}<extra></extra>`,
+    }], l, CONFIG).then(() => resaltarCelda(Plotly, nodo));
   }, altura, titulo, unidad);
 }

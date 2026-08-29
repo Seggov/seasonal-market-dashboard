@@ -323,3 +323,5 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+.chart .nsewdrag { cursor: crosshair !important; }
