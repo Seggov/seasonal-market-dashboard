@@ -191,10 +191,15 @@ navegador. `resumen.velas` publica `t` (absoluto) y `lt` (local) en paralelo.
 | Carga inicial (shell + manifiesto, sin comprimir) | 6 MB | **4,50 MB** | `tools/check_dist.py` |
 | Mayor fragmento individual | 8 MB | **4,35 MB** (Plotly) | `tools/check_dist.py` |
 | Tiempo de generación | 10 min (límite de Pages) | **110 s** | workflow |
-| Cambio de activo en frío (139 k velas) | < 2 s | **1,35 s** | verificación manual |
-| Cambio de activo en caliente (140 k velas) | < 2 s | **0,94 s** | verificación manual |
-| Cambio de vista con recálculo | < 2 s | **1,00 s** | verificación manual |
+| Cambio de activo en frío (139 k velas) | < 2 s | **1,35 s** local · **1,96 s** en Pages | verificación manual |
+| Cambio de activo en caliente (140 k velas) | < 2 s | **0,94 s** local · **1,01 s** en Pages | verificación manual |
+| Cambio de vista con recálculo | < 2 s | **1,00 s** en ambos | verificación manual |
 | Memoria del hilo principal, activo mayor | < 200 MB | **20 MB** | verificación manual |
+
+Las cifras «en Pages» se midieron sobre el sitio publicado, no en localhost. La
+**primera** carga de la página es mayor (~3,4 s hasta la primera vista) porque
+incluye descargar el bundle de Plotly; a partir de ahí queda en la caché del
+navegador y los cambios de activo se mueven en el rango de la tabla.
 
 El mayor fragmento es la biblioteca de gráficos, no un archivo de datos: el
 mayor JSON de series ronda los 250 KB. Se eligió el bundle completo de Plotly
