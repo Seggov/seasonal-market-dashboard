@@ -161,6 +161,19 @@ def tabla_transiciones(
 # --------------------------------------------------------------------------
 
 
+def _segundos_epoch(fechas: pd.Series) -> np.ndarray:
+    """Convierte marcas a segundos enteros desde la epoca, sea cual sea su unidad.
+
+    pandas 2 almacena ``datetime64`` con resolucion variable -- ``ns``, ``us``,
+    ``ms`` o ``s`` -- y la elige al analizar el texto, de modo que puede
+    diferir entre versiones y plataformas. Asumir nanosegundos produce marcas
+    mil veces menores en un entorno que resuelva en microsegundos, asi que la
+    unidad se normaliza explicitamente antes de convertir.
+    """
+
+    return pd.to_datetime(fechas).dt.as_unit("s").astype("int64").to_numpy()
+
+
 def _decimales_necesarios(valores: np.ndarray) -> int | None:
     """Menor numero de decimales que representa exactamente todos los valores."""
 
@@ -224,7 +237,7 @@ def construir_serie(
     """Empaqueta las velas de un año en el formato columnar del contrato."""
 
     fechas = pd.to_datetime(marco[columna_fecha])
-    instantes = (fechas.astype("int64") // 1_000_000_000).to_numpy()
+    instantes = _segundos_epoch(fechas)
     offsets = np.array(
         [int(marca.utcoffset().total_seconds()) for marca in fechas], dtype=np.int64
     )

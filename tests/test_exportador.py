@@ -133,18 +133,62 @@ def test_la_serie_codificada_reproduce_los_precios_bit_a_bit() -> None:
             np.testing.assert_array_equal(_decodificar(serie, clave), esperado)
 
 
+def _epochs_publicados(serie: dict[str, object]) -> np.ndarray:
+    """Reconstruye las marcas absolutas igual que hace el decodificador web."""
+
+    return np.concatenate(
+        ([serie["t0"]], serie["t0"] + np.cumsum(np.array(serie["dt"], dtype=np.int64)))
+    )
+
+
 def test_la_serie_codificada_reproduce_las_marcas_de_tiempo() -> None:
     escenario = escenarios.escenario_ny_otono()
     serie = exportador.construir_serie(
         escenario.datos, escenario.nombre, 2024, COLUMNA_FECHA
     )
-    epochs = np.concatenate(
-        ([serie["t0"]], serie["t0"] + np.cumsum(np.array(serie["dt"], dtype=np.int64)))
+    # Referencia independiente de la unidad interna de pandas.
+    esperado = np.array(
+        [int(marca.timestamp()) for marca in escenario.datos[COLUMNA_FECHA]],
+        dtype=np.int64,
     )
-    esperado = (
-        pd.to_datetime(escenario.datos[COLUMNA_FECHA]).astype("int64") // 1_000_000_000
-    ).to_numpy()
-    np.testing.assert_array_equal(epochs, esperado)
+    np.testing.assert_array_equal(_epochs_publicados(serie), esperado)
+
+
+@pytest.mark.parametrize("unidad", ["s", "ms", "us", "ns"])
+def test_las_marcas_no_dependen_de_la_resolucion_de_pandas(unidad: str) -> None:
+    """pandas 2 elige la resolucion al analizar; el resultado no puede cambiar.
+
+    Con resolucion de microsegundos, asumir nanosegundos producia marcas mil
+    veces menores. La integracion continua lo detecto porque su version de
+    pandas resolvia distinto que la local.
+    """
+
+    escenario = escenarios.escenario_utc_continuo()
+    datos = escenario.datos.copy()
+    datos[COLUMNA_FECHA] = datos[COLUMNA_FECHA].dt.as_unit(unidad)
+    assert datos[COLUMNA_FECHA].dt.unit == unidad
+
+    serie = exportador.construir_serie(datos, escenario.nombre, 2021, COLUMNA_FECHA)
+    esperado = np.array(
+        [int(marca.timestamp()) for marca in escenario.datos[COLUMNA_FECHA]],
+        dtype=np.int64,
+    )
+    np.testing.assert_array_equal(_epochs_publicados(serie), esperado)
+    assert serie["t0"] == int(escenario.datos[COLUMNA_FECHA].iloc[0].timestamp())
+
+
+@pytest.mark.parametrize("unidad", ["s", "ms", "us", "ns"])
+def test_el_informe_y_la_serie_coinciden_en_cualquier_resolucion(unidad: str) -> None:
+    """El epoch de ``vista_resumen`` y el de la serie deben ser el mismo numero."""
+
+    escenario = escenarios.escenario_utc_continuo()
+    datos = escenario.datos.copy()
+    datos[COLUMNA_FECHA] = datos[COLUMNA_FECHA].dt.as_unit(unidad)
+    activo = _activo(escenario)
+
+    serie = exportador.construir_serie(datos, escenario.nombre, 2021, COLUMNA_FECHA)
+    resumen = exportador.vista_resumen(datos, activo, COLUMNA_FECHA)
+    assert resumen["velas"]["t"][0] == serie["t0"]
 
 
 def test_los_desplazamientos_rle_se_expanden_correctamente() -> None:
