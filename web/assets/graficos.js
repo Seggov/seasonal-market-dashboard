@@ -84,11 +84,43 @@ function disposicionBase(titulo, ejeY, altura) {
   };
 }
 
+/**
+ * Reajusta cada grafico al ancho real de su contenedor.
+ *
+ * La opcion `responsive` de Plotly solo reacciona al evento `resize` de la
+ * ventana, asi que no cubre los cambios de ancho que provoca el propio diseno
+ * -- abrir el panel lateral, girar el dispositivo o pasar a otra vista con
+ * rejilla distinta. Un `ResizeObserver` por lienzo si los cubre todos.
+ */
+function reajustar(nodo) {
+  // Un nodo oculto mide cero: reajustarlo ahi rompe la disposicion.
+  if (!nodo?.data || !nodo.isConnected || nodo.clientWidth < 1) return;
+  window.Plotly?.Plots.resize(nodo);
+}
+
+const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver((entradas) => {
+  for (const entrada of entradas) reajustar(entrada.target);
+});
+
+// El observador cubre los cambios de ancho que no mueven la ventana, pero sus
+// callbacks dependen del ciclo de render. Este oyente cubre el caso mas comun
+// -- girar el dispositivo o redimensionar la ventana -- sin esa dependencia.
+let temporizadorReajuste = null;
+window.addEventListener('resize', () => {
+  clearTimeout(temporizadorReajuste);
+  temporizadorReajuste = setTimeout(() => {
+    for (const nodo of document.querySelectorAll('.grafico')) reajustar(nodo);
+  }, 120);
+});
+
 /** Contenedor de un grafico; el dibujado ocurre cuando Plotly esta listo. */
 function lienzo(dibujar, altura) {
   const nodo = elemento('div', { clase: 'grafico', style: `min-height:${altura}px` });
   listo()
-    .then((Plotly) => dibujar(Plotly, nodo))
+    .then((Plotly) => {
+      dibujar(Plotly, nodo);
+      observador?.observe(nodo);
+    })
     .catch((error) => {
       nodo.classList.add('estado', 'estado--error');
       nodo.textContent = error.message;
