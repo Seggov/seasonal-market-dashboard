@@ -15,20 +15,31 @@ import streamlit as st
 from .analisis import (
     DIAS_SEMANA_ES,
     MESES_ES,
-    agregar_periodos,
     dia_mes,
     dia_semana,
-    estadisticas_retornos,
     estacionalidad_mes,
     eventos_extremos,
     filtrar_iqr,
-    filtrar_sesion_observada,
-    filtrar_sesion_personalizada,
     hora,
-    matriz_dia_hora,
     permite_analisis_horario,
     semana_iso,
-    temporalidad_a_minutos,
+)
+from .vistas import (
+    METRICAS_MATRIZ,
+    agregar,
+    aplicar_sesion,
+    columna_fecha_analisis,
+    curvas_intradia_por_dia,
+    curvas_mensuales,
+    datos_diarios,
+    dias_y_horas_observados,
+    downsample_ohlc,
+    matriz_con_minimo,
+    metricas_resumen,
+    opciones_periodo,
+    periodo_seleccionado,
+    pivote_anual_mensual,
+    preparar_datos,
 )
 from .cache import (
     ErrorCache,
@@ -92,7 +103,6 @@ COLORES = {
     "gris": "#73808c",
     "arena": "#d5b36a",
 }
-MAX_VELAS_GRAFICO = 3_000
 
 TEMAS = {
     "claro": {
@@ -303,33 +313,6 @@ def _texto_fecha(valor: Any) -> str:
     return fecha.strftime("%Y-%m-%d %H:%M") + zona
 
 
-def _columna_fecha(datos: pd.DataFrame, activo: ActivoConfig) -> str:
-    """Selecciona la columna temporal semánticamente correcta."""
-
-    preferida = "timestamp_local" if activo.tipo_timestamp == "instante_utc" else "fecha_sesion"
-    if preferida in datos:
-        return preferida
-    for candidata in ("timestamp", "timestamp_visual", "fecha_sesion"):
-        if candidata in datos:
-            return candidata
-    raise ValueError("Los datos válidos no contienen una columna temporal utilizable.")
-
-
-def _preparar_datos(datos: pd.DataFrame, activo: ActivoConfig) -> tuple[pd.DataFrame, str]:
-    """Ordena la serie y calcula el retorno propio de cada vela por OHLC."""
-
-    columna = _columna_fecha(datos, activo)
-    trabajo = datos.copy()
-    trabajo[columna] = pd.to_datetime(trabajo[columna], errors="coerce")
-    trabajo = trabajo.dropna(subset=[columna]).sort_values(columna, kind="stable")
-    apertura = pd.to_numeric(trabajo["open"], errors="coerce")
-    cierre = pd.to_numeric(trabajo["close"], errors="coerce")
-    trabajo["return_percent"] = np.where(
-        apertura.abs() > 1e-10, (cierre / apertura - 1.0) * 100.0, np.nan
-    )
-    return trabajo.reset_index(drop=True), columna
-
-
 def _tabla_presentacion(tabla: pd.DataFrame, renombres: dict[str, str] | None = None) -> pd.DataFrame:
     """Prepara una copia legible, sin mostrar NaN ni infinitos al usuario."""
 
@@ -484,133 +467,6 @@ def _grafico_linea(
     st.plotly_chart(_estilo_figura(figura, titulo), width="stretch")
 
 
-def _agregar(datos: pd.DataFrame, periodo: str, activo: ActivoConfig, columna_fecha: str) -> pd.DataFrame:
-    """Agrega periodos usando siempre primera apertura y último cierre."""
-
-    if periodo == "hour":
-        # El agregador general recorre cada grupo. En series de varios años a
-        # 15 minutos, esta ruta equivalente evita decenas de miles de iteraciones.
-        minutos = temporalidad_a_minutos(activo.temporalidad)
-        if minutos >= 60 or 60 % minutos != 0:
-            return agregar_periodos(
-                datos,
-                periodo,
-                columna_fecha=columna_fecha,
-                temporalidad=activo.temporalidad,
-            )
-        trabajo = datos.sort_values(columna_fecha, kind="stable").copy()
-        fechas = pd.to_datetime(trabajo[columna_fecha])
-        trabajo["__fecha"] = fechas
-        trabajo["__hora"] = fechas.dt.floor("h")
-        paso = pd.Timedelta(minutes=minutos)
-        trabajo["__en_rejilla"] = ((fechas - trabajo["__hora"]) % paso).eq(pd.Timedelta(0))
-        grupos = trabajo.groupby("__hora", sort=True, observed=True)
-        salida = grupos.agg(
-            inicio=("__fecha", "first"),
-            fin=("__fecha", "last"),
-            open=("open", "first"),
-            close=("close", "last"),
-            cantidad_registros=("__fecha", "size"),
-            marcas_unicas=("__fecha", "nunique"),
-            en_rejilla=("__en_rejilla", "all"),
-        ).reset_index(drop=True)
-        esperados = 60 // minutos
-        inicio_hora = pd.to_datetime(salida["inicio"]).dt.floor("h")
-        salida["completo"] = (
-            salida["cantidad_registros"].eq(esperados)
-            & salida["marcas_unicas"].eq(esperados)
-            & salida["en_rejilla"]
-            & salida["inicio"].eq(inicio_hora)
-            & salida["fin"].eq(inicio_hora + pd.Timedelta(hours=1) - paso)
-        )
-        apertura = pd.to_numeric(salida["open"], errors="coerce")
-        cierre = pd.to_numeric(salida["close"], errors="coerce")
-        salida["return_percent"] = np.where(
-            apertura.abs() > 1e-10, (cierre / apertura - 1.0) * 100.0, np.nan
-        )
-        return salida[
-            ["inicio", "fin", "open", "close", "return_percent", "cantidad_registros", "completo"]
-        ]
-    return agregar_periodos(
-        datos,
-        periodo,
-        columna_fecha=columna_fecha,
-        temporalidad=activo.temporalidad,
-    )
-
-
-def _datos_diarios(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: str) -> pd.DataFrame:
-    """Agrega primero velas intradía; conserva velas diarias ya observadas."""
-
-    if permite_analisis_horario(activo.temporalidad):
-        return _agregar(datos, "day", activo, columna_fecha)
-    salida = datos[[columna_fecha, "open", "close", "return_percent"]].copy()
-    salida = salida.rename(columns={columna_fecha: "inicio"})
-    salida["fin"] = salida["inicio"]
-    salida["cantidad_registros"] = 1
-    salida["completo"] = True
-    return salida[["inicio", "fin", "open", "close", "return_percent", "cantidad_registros", "completo"]]
-
-
-def _curvas_mensuales(diarios: pd.DataFrame) -> pd.DataFrame:
-    """Promedia la trayectoria acumulada diaria de cada mes histórico."""
-
-    if diarios.empty:
-        return pd.DataFrame(columns=["numero_mes", "dia_mes", "retorno_ponderado", "muestras"])
-    trabajo = diarios.sort_values("inicio", kind="stable").copy()
-    fechas = pd.to_datetime(trabajo["inicio"])
-    trabajo["ano"] = fechas.dt.year
-    trabajo["numero_mes"] = fechas.dt.month
-    trabajo["dia_mes"] = fechas.dt.day
-    apertura_mes = trabajo.groupby(["ano", "numero_mes"], sort=False)["open"].transform("first")
-    trabajo["retorno_acumulado"] = np.where(
-        apertura_mes.abs() > 1e-10,
-        (trabajo["close"] / apertura_mes - 1.0) * 100.0,
-        np.nan,
-    )
-    return (
-        trabajo.groupby(["numero_mes", "dia_mes"], observed=True)["retorno_acumulado"]
-        .agg(retorno_ponderado="mean", muestras="count")
-        .reset_index()
-    )
-
-
-def _curvas_intradia_por_dia(
-    datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: str
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Calcula trayectoria acumulada y retorno horario por día de semana."""
-
-    if not permite_analisis_horario(activo.temporalidad):
-        vacio = pd.DataFrame(columns=["numero_dia", "hora", "retorno", "muestras"])
-        return vacio, vacio.copy()
-    horas = _agregar(datos, "hour", activo, columna_fecha)
-    if horas.empty:
-        vacio = pd.DataFrame(columns=["numero_dia", "hora", "retorno", "muestras"])
-        return vacio, vacio.copy()
-    trabajo = horas.sort_values("inicio", kind="stable").copy()
-    fechas = pd.to_datetime(trabajo["inicio"])
-    trabajo["fecha_dia"] = fechas.dt.normalize()
-    trabajo["numero_dia"] = fechas.dt.dayofweek
-    trabajo["hora"] = fechas.dt.hour
-    apertura_dia = trabajo.groupby("fecha_dia", sort=False)["open"].transform("first")
-    trabajo["retorno_acumulado"] = np.where(
-        apertura_dia.abs() > 1e-10,
-        (trabajo["close"] / apertura_dia - 1.0) * 100.0,
-        np.nan,
-    )
-    trayectoria = (
-        trabajo.groupby(["numero_dia", "hora"], observed=True)["retorno_acumulado"]
-        .agg(retorno="mean", muestras="count")
-        .reset_index()
-    )
-    retornos_hora = (
-        trabajo.groupby(["numero_dia", "hora"], observed=True)["return_percent"]
-        .agg(retorno="mean", muestras="count")
-        .reset_index()
-    )
-    return trayectoria, retornos_hora
-
-
 def _mostrar_curvas_por_dia(curvas: pd.DataFrame, prefijo_titulo: str) -> None:
     """Muestra una curva individual para cada día, o su falta de datos."""
 
@@ -628,44 +484,6 @@ def _mostrar_curvas_por_dia(curvas: pd.DataFrame, prefijo_titulo: str) -> None:
                 f"{prefijo_titulo} · {nombre_dia.title()}",
                 altura=330,
             )
-
-
-def _periodo_seleccionado(
-    etiqueta: str,
-    datos: pd.DataFrame,
-    activo: ActivoConfig,
-    columna_fecha: str,
-) -> tuple[pd.DataFrame, str]:
-    """Resuelve el periodo elegido por controles de distribución o extremos."""
-
-    equivalencias = {
-        "Vela base": None,
-        "Hora": "hour",
-        "Día": "day",
-        "Semana ISO": "week",
-        "Mes": "month",
-        "Año": "year",
-    }
-    periodo = equivalencias[etiqueta]
-    if periodo is None:
-        salida = datos.copy()
-        salida["inicio"] = salida[columna_fecha]
-        salida["fin"] = salida[columna_fecha]
-        salida["cantidad_registros"] = 1
-        salida["completo"] = True
-        return salida, columna_fecha
-    agregados = _agregar(datos, periodo, activo, columna_fecha)
-    return agregados, "inicio"
-
-
-def _opciones_periodo(activo: ActivoConfig) -> list[str]:
-    """Lista periodos compatibles con la temporalidad del activo."""
-
-    opciones = ["Vela base"]
-    if permite_analisis_horario(activo.temporalidad):
-        opciones.append("Hora")
-    opciones.extend(("Día", "Semana ISO", "Mes", "Año"))
-    return opciones
 
 
 def _cobertura_texto(cobertura: dict[str, Any]) -> str:
@@ -686,7 +504,7 @@ def _resumen_catalogo_cacheado(simbolo: str, firma_archivos: str) -> dict[str, A
     fecha_inicial: Any = None
     fecha_final: Any = None
     if not resultado.datos_validos.empty:
-        columna = _columna_fecha(resultado.datos_validos, activo)
+        columna = columna_fecha_analisis(resultado.datos_validos, activo)
         fechas = pd.to_datetime(resultado.datos_validos[columna], errors="coerce")
         fecha_inicial = fechas.min()
         fecha_final = fechas.max()
@@ -873,10 +691,10 @@ def _controles_sesion(
     activo: ActivoConfig,
     columna_fecha: str,
 ) -> tuple[pd.DataFrame, str]:
-    """Configura sesión declarada, observada o personalizada sin inventar horarios."""
+    """Recoge la sesión elegida y delega el filtrado en ``vistas``."""
 
     if activo.sesion.strip().lower() == "24/7":
-        return datos.copy(), f"Sesión declarada {activo.sesion}; sin filtro adicional."
+        return aplicar_sesion(datos, activo, columna_fecha)
 
     st.sidebar.markdown("### Sesión")
     modo = st.sidebar.radio(
@@ -885,42 +703,27 @@ def _controles_sesion(
         key=f"sesion_modo_{activo.simbolo}",
         help="La sesión declarada es la opción predeterminada.",
     )
-    intradia = permite_analisis_horario(activo.temporalidad)
-    if not intradia:
+    if not permite_analisis_horario(activo.temporalidad):
         st.sidebar.info(
             "La temporalidad diaria no conserva horas observables. No se pueden filtrar "
             "horas ni construir una sesión intradía; se mantiene toda la serie."
         )
-        if modo != "Declarada":
-            return datos.copy(), f"{modo}: no aplicable a datos diarios; serie completa."
-        if activo.sesion.strip().lower() not in {"24/7", "24/5"}:
+        if modo == "Declarada" and activo.sesion.strip().lower() not in {"24/7", "24/5"}:
             st.sidebar.caption(
                 "La sesión declarada no incluye un calendario exacto. No se aproximan "
                 "horarios, festivos ni cierres del mercado."
             )
-        return datos.copy(), f"Sesión declarada {activo.sesion}; sin filtro horario."
+        return aplicar_sesion(datos, activo, columna_fecha, modo=modo)
 
-    fechas = pd.to_datetime(datos[columna_fecha])
-    dias_observados = sorted(fechas.dt.dayofweek.unique().astype(int))
-    horas_observadas = sorted(fechas.dt.hour.unique().astype(int))
+    dias_observados, horas_observadas = dias_y_horas_observados(datos, columna_fecha)
 
     if modo == "Declarada":
-        sesion = activo.sesion.strip().lower()
-        if sesion == "24/5":
-            filtrados = filtrar_sesion_observada(
-                datos,
-                dias_semana=[0, 1, 2, 3, 4],
-                columna_fecha=columna_fecha,
-                temporalidad=activo.temporalidad,
+        if activo.sesion.strip().lower() != "24/5":
+            st.sidebar.caption(
+                "No hay un calendario exacto para esta etiqueta de sesión. Se conservan "
+                "todas las observaciones y no se presuponen horarios ni festivos."
             )
-            return filtrados, "Sesión declarada 24/5: lunes a viernes; sin inventar horas."
-        if sesion == "24/7":
-            return datos.copy(), "Sesión declarada 24/7; serie completa."
-        st.sidebar.caption(
-            "No hay un calendario exacto para esta etiqueta de sesión. Se conservan "
-            "todas las observaciones y no se presuponen horarios ni festivos."
-        )
-        return datos.copy(), f"Sesión declarada {activo.sesion}; calendario exacto no disponible."
+        return aplicar_sesion(datos, activo, columna_fecha, modo=modo)
 
     etiquetas_dias = {numero: DIAS_SEMANA_ES[numero].title() for numero in range(7)}
     dias = st.sidebar.multiselect(
@@ -938,14 +741,9 @@ def _controles_sesion(
             format_func=lambda valor: f"{valor:02d}:00",
             key=f"sesion_horas_{activo.simbolo}",
         )
-        filtrados = filtrar_sesion_observada(
-            datos,
-            dias_semana=dias,
-            horas=horas,
-            columna_fecha=columna_fecha,
-            temporalidad=activo.temporalidad,
+        return aplicar_sesion(
+            datos, activo, columna_fecha, modo=modo, dias=dias, horas=horas
         )
-        return filtrados, "Sesión observada: solo días y horas presentes en el archivo."
 
     inicio = st.sidebar.time_input(
         "Hora inicial",
@@ -957,15 +755,15 @@ def _controles_sesion(
         value=time(17, 0),
         key=f"sesion_fin_{activo.simbolo}",
     )
-    filtrados = filtrar_sesion_personalizada(
+    return aplicar_sesion(
         datos,
-        inicio,
-        fin,
-        dias_semana=dias,
-        columna_fecha=columna_fecha,
-        temporalidad=activo.temporalidad,
+        activo,
+        columna_fecha,
+        modo=modo,
+        dias=dias,
+        hora_inicio=inicio,
+        hora_fin=fin,
     )
-    return filtrados, f"Sesión personalizada [{inicio:%H:%M}, {fin:%H:%M}); zona {activo.zona_horaria}."
 
 
 def _seccion_resumen(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: str) -> None:
@@ -975,36 +773,16 @@ def _seccion_resumen(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: s
     if datos.empty:
         st.warning("La sesión seleccionada no contiene observaciones.")
         return
-    cierre = float(datos.iloc[-1]["close"])
-    estadisticas = estadisticas_retornos(datos)
-    mensual = _agregar(datos, "month", activo, columna_fecha)
-    anual = _agregar(datos, "year", activo, columna_fecha)
-    retorno_ultimo_mes = mensual["return_percent"].iloc[-1] if not mensual.empty else np.nan
-    retorno_ultimo_ano = anual["return_percent"].iloc[-1] if not anual.empty else np.nan
+    metricas = metricas_resumen(datos, activo, columna_fecha)
     columnas = st.columns(5)
-    columnas[0].metric("Último cierre", _texto_numero(cierre, 4))
-    columnas[1].metric("Retorno del último mes", _texto_numero(retorno_ultimo_mes, 2, "%"))
-    columnas[2].metric("Retorno del último año", _texto_numero(retorno_ultimo_ano, 2, "%"))
-    columnas[3].metric("Velas positivas", _texto_numero(estadisticas["positivo_pct"], 2, "%"))
-    columnas[4].metric("Velas negativas", _texto_numero(estadisticas["negativo_pct"], 2, "%"))
+    columnas[0].metric("Último cierre", _texto_numero(metricas["ultimo_cierre"], 4))
+    columnas[1].metric("Retorno del último mes", _texto_numero(metricas["retorno_ultimo_mes"], 2, "%"))
+    columnas[2].metric("Retorno del último año", _texto_numero(metricas["retorno_ultimo_ano"], 2, "%"))
+    columnas[3].metric("Velas positivas", _texto_numero(metricas["positivo_pct"], 2, "%"))
+    columnas[4].metric("Velas negativas", _texto_numero(metricas["negativo_pct"], 2, "%"))
 
-    datos_grafico = datos
-    if len(datos) > MAX_VELAS_GRAFICO:
-        tamano_grupo = int(np.ceil(len(datos) / MAX_VELAS_GRAFICO))
-        datos_grafico = (
-            datos.assign(__grupo=np.arange(len(datos)) // tamano_grupo)
-            .groupby("__grupo", sort=True, observed=True)
-            .agg(
-                **{
-                    columna_fecha: (columna_fecha, "first"),
-                    "open": ("open", "first"),
-                    "high": ("high", "max"),
-                    "low": ("low", "min"),
-                    "close": ("close", "last"),
-                }
-            )
-            .reset_index(drop=True)
-        )
+    datos_grafico, resumido = downsample_ohlc(datos, columna_fecha)
+    if resumido:
         st.caption(
             f"El gráfico resume {len(datos):,} velas en {len(datos_grafico):,} bloques OHLC "
             "para acelerar la visualización. Las estadísticas usan todas las observaciones."
@@ -1033,7 +811,7 @@ def _seccion_calidad(resultado: ResultadoValidacion, activo: ActivoConfig) -> No
     st.subheader("Calidad de datos")
     resumen = resultado.resumen
     validos = resultado.datos_validos
-    columna_fecha = _columna_fecha(validos, activo) if not validos.empty else None
+    columna_fecha = columna_fecha_analisis(validos, activo) if not validos.empty else None
     fechas = (
         pd.to_datetime(validos[columna_fecha], errors="coerce")
         if columna_fecha is not None
@@ -1058,24 +836,15 @@ def _seccion_anual(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: str
     """Muestra retorno anual y la historia mensual completa por año."""
 
     st.subheader("Análisis por periodo")
-    anual = _agregar(datos, "year", activo, columna_fecha)
-    mensual = _agregar(datos, "month", activo, columna_fecha)
+    anual = agregar(datos, "year", activo, columna_fecha)
+    mensual = agregar(datos, "month", activo, columna_fecha)
     if anual.empty or mensual.empty:
         st.info("La información disponible no es suficiente para este análisis.")
         return
-    anual["año"] = pd.to_datetime(anual["inicio"]).dt.year
+    anual = anual.assign(**{"año": pd.to_datetime(anual["inicio"]).dt.year})
     _grafico_barras(anual, "año", "return_percent", "Retorno por año")
 
-    fechas_mensuales = pd.to_datetime(mensual["inicio"])
-    mensual["año"] = fechas_mensuales.dt.year
-    mensual["mes"] = fechas_mensuales.dt.month
-    ano_inicial = int(mensual["año"].min())
-    ano_final = int(mensual["año"].max())
-    tabla = mensual.pivot(index="año", columns="mes", values="return_percent")
-    tabla = tabla.reindex(index=range(ano_inicial, ano_final + 1), columns=range(1, 13))
-    retorno_anual = anual.set_index("año")["return_percent"]
-    tabla["retorno_anual"] = retorno_anual
-    tabla = tabla.reset_index()
+    tabla = pivote_anual_mensual(anual, mensual)
     tabla.columns = [
         "Año",
         *[mes.title() for mes in MESES_ES],
@@ -1093,15 +862,15 @@ def _seccion_mensual(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: s
     """Compara meses y muestra doce trayectorias históricas ponderadas."""
 
     st.subheader("Análisis mensual")
-    mensual = _agregar(datos, "month", activo, columna_fecha)
+    mensual = agregar(datos, "month", activo, columna_fecha)
     if mensual.empty:
         st.info("La información disponible no es suficiente para el análisis mensual.")
         return
     estacional = estacionalidad_mes(mensual, columna_fecha="inicio")
     _grafico_barras(estacional, "mes", "promedio", "Retorno promedio histórico por mes")
 
-    diarios = _datos_diarios(datos, activo, columna_fecha)
-    curvas = _curvas_mensuales(diarios)
+    diarios = datos_diarios(datos, activo, columna_fecha)
+    curvas = curvas_mensuales(diarios)
     st.markdown("#### Curva histórica ponderada de cada mes")
     st.caption(
         "Cada curva parte de la primera apertura del mes y promedia el retorno acumulado "
@@ -1127,7 +896,7 @@ def _seccion_semanal(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: s
     """Compara semanas ISO con filtro opcional de valores atípicos."""
 
     st.subheader("Análisis semanal")
-    semanal = _agregar(datos, "week", activo, columna_fecha)
+    semanal = agregar(datos, "week", activo, columna_fecha)
     quitar_atipicos = st.toggle(
         "Excluir outliers semanales",
         value=False,
@@ -1161,7 +930,7 @@ def _seccion_dia_semana(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha
     """Compara días y sus trayectorias intradía cuando existen horas."""
 
     st.subheader("Día de la semana")
-    diarios = _datos_diarios(datos, activo, columna_fecha)
+    diarios = datos_diarios(datos, activo, columna_fecha)
     estacional = dia_semana(diarios, columna_fecha="inicio")
     _grafico_barras(
         estacional,
@@ -1175,7 +944,7 @@ def _seccion_dia_semana(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha
             "horas suficientes para construir las siete curvas intradía."
         )
         return
-    trayectorias, _ = _curvas_intradia_por_dia(datos, activo, columna_fecha)
+    trayectorias, _ = curvas_intradia_por_dia(datos, activo, columna_fecha)
     st.markdown("#### Trayectoria histórica ponderada por día")
     _mostrar_curvas_por_dia(trayectorias, "Trayectoria acumulada")
 
@@ -1184,7 +953,7 @@ def _seccion_diaria(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: st
     """Muestra exclusivamente la estacionalidad por día del mes."""
 
     st.subheader("Análisis diario")
-    diarios = _datos_diarios(datos, activo, columna_fecha)
+    diarios = datos_diarios(datos, activo, columna_fecha)
     estacional = dia_mes(diarios, columna_fecha="inicio")
     if estacional.empty:
         st.info("La información disponible no es suficiente para el análisis diario.")
@@ -1235,13 +1004,13 @@ def _seccion_horaria(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: s
             "horas observables. El análisis horario no está disponible."
         )
         return
-    horas_agregadas = _agregar(datos, "hour", activo, columna_fecha)
+    horas_agregadas = agregar(datos, "hour", activo, columna_fecha)
     if horas_agregadas.empty:
         st.info("La información disponible no es suficiente para el análisis horario.")
         return
     estacional = hora(horas_agregadas, columna_fecha="inicio", temporalidad="1h")
     _grafico_barras(estacional, "hora", "promedio", "Retorno promedio por hora")
-    _, retornos_hora = _curvas_intradia_por_dia(datos, activo, columna_fecha)
+    _, retornos_hora = curvas_intradia_por_dia(datos, activo, columna_fecha)
     st.markdown("#### Comportamiento horario por día de la semana")
     _mostrar_curvas_por_dia(retornos_hora, "Retorno por hora")
 
@@ -1253,15 +1022,10 @@ def _seccion_matriz(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: st
     if not permite_analisis_horario(activo.temporalidad):
         st.info("La matriz día-hora solo está disponible para datos intradía.")
         return
-    metricas = {
-        "Promedio": "mean",
-        "Mediana": "median",
-        "% positivos": "positive_pct",
-        "Desv. estándar": "std",
-        "Conteo": "count",
-    }
-    etiqueta = st.selectbox("Métrica", list(metricas), key=f"metrica_matriz_{activo.simbolo}")
-    horas_agregadas = _agregar(datos, "hour", activo, columna_fecha)
+    etiqueta = st.selectbox(
+        "Métrica", list(METRICAS_MATRIZ), key=f"metrica_matriz_{activo.simbolo}"
+    )
+    horas_agregadas = agregar(datos, "hour", activo, columna_fecha)
     controles = st.columns(3)
     quitar_atipicos = controles[0].checkbox(
         "Quitar outliers",
@@ -1283,24 +1047,13 @@ def _seccion_matriz(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: st
         step=1,
         key=f"minimo_matriz_{activo.simbolo}",
     )
-    horas_filtradas, eliminados = filtrar_iqr(
+    matriz, _, eliminados = matriz_con_minimo(
         horas_agregadas,
-        activo=quitar_atipicos,
+        METRICAS_MATRIZ[etiqueta],
+        quitar_atipicos=quitar_atipicos,
         factor=float(factor_iqr),
+        minimo_observaciones=int(minimo_observaciones),
     )
-    matriz = matriz_dia_hora(
-        horas_filtradas,
-        metricas[etiqueta],
-        columna_fecha="inicio",
-        temporalidad="1h",
-    )
-    conteos = matriz_dia_hora(
-        horas_filtradas,
-        "count",
-        columna_fecha="inicio",
-        temporalidad="1h",
-    )
-    matriz = matriz.mask(conteos < int(minimo_observaciones))
     if quitar_atipicos:
         st.caption(
             f"Outliers: IQR Q1/Q3 con factor {factor_iqr:.1f}; "
@@ -1312,15 +1065,15 @@ def _seccion_matriz(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: st
         st.info("No hay observaciones para construir la matriz.")
         return
     tema = _tema_actual()
-    es_porcentaje = metricas[etiqueta] != "count"
-    if metricas[etiqueta] in {"mean", "median"}:
+    es_porcentaje = METRICAS_MATRIZ[etiqueta] != "count"
+    if METRICAS_MATRIZ[etiqueta] in {"mean", "median"}:
         escala = [
             [0, COLORES["rojo"]],
             [0.5, tema["superficie_secundaria"]],
             [1, COLORES["verde"]],
         ]
         centro = 0
-    elif metricas[etiqueta] == "positive_pct":
+    elif METRICAS_MATRIZ[etiqueta] == "positive_pct":
         escala = [
             [0, COLORES["rojo"]],
             [0.5, tema["superficie_secundaria"]],
@@ -1399,8 +1152,8 @@ def _seccion_extremos(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: 
     izquierda, centro, derecha = st.columns(3)
     periodo = izquierda.selectbox(
         "Periodo",
-        _opciones_periodo(activo),
-        index=_opciones_periodo(activo).index("Día"),
+        opciones_periodo(activo),
+        index=opciones_periodo(activo).index("Día"),
         key=f"periodo_extremos_{activo.simbolo}",
     )
     usar_umbral = centro.checkbox("Usar umbral absoluto", value=False, key=f"umbral_activo_{activo.simbolo}")
@@ -1414,7 +1167,7 @@ def _seccion_extremos(datos: pd.DataFrame, activo: ActivoConfig, columna_fecha: 
             "Mejores y peores", min_value=1, max_value=100, value=5, step=1, key=f"n_extremos_{activo.simbolo}"
         )
         umbral = None
-    periodos, fecha_periodo = _periodo_seleccionado(periodo, datos, activo, columna_fecha)
+    periodos, fecha_periodo = periodo_seleccionado(periodo, datos, activo, columna_fecha)
     extremos = eventos_extremos(
         periodos,
         n=int(n),
@@ -1549,7 +1302,7 @@ def _pantalla_analisis(activos: dict[str, ActivoConfig]) -> None:
     seccion = _barra_lateral(activos, activo)
     try:
         resultado = _resultado(activo)
-        datos, columna_fecha = _preparar_datos(resultado.datos_validos, activo)
+        datos, columna_fecha = preparar_datos(resultado.datos_validos, activo)
     except (ErrorDatos, ErrorCache, ErrorConfiguracion, KeyError, OSError, ValueError) as exc:
         REGISTRO.exception("No se pudo cargar el activo %s", activo.simbolo)
         st.error(f"No se pudo cargar {activo.simbolo}: {exc}")
