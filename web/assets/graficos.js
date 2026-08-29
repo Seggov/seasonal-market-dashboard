@@ -200,6 +200,7 @@ export function barras(x, y, { titulo, unidad = '%', altura = 280, etiquetas = t
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
     l.bargap = 0.3;
+    l.xaxis.type = 'category';
     Plotly.newPlot(nodo, [{
       type: 'bar',
       x,
@@ -223,6 +224,9 @@ export function barrasH(y, x, { titulo, unidad = '%', altura = 380 } = {}) {
     const l = base('', altura);
     l.margin.l = 116;
     l.hovermode = 'closest';
+    // Sin 'category' Plotly interpreta las fechas como un eje temporal continuo
+    // y apila todas las barras en una sola linea.
+    l.yaxis.type = 'category';
     l.yaxis.autorange = 'reversed';
     l.yaxis.gridcolor = 'rgba(0,0,0,0)';
     l.xaxis = {
@@ -315,21 +319,29 @@ export function mapaCalor(datos, {
     const l = base('', altura);
     l.hovermode = 'closest';
     l.margin = { l: 52, r: escalaVisible ? 8 : 14, t: 22, b: 8 };
+    // `tickmode: linear` evita que Plotly se salte etiquetas cuando hay muchas
+    // categorias: en un mapa de calor cada fila y columna necesita la suya.
     l.xaxis = {
       ...l.xaxis,
       showspikes: false,
+      type: 'category',
       side: 'top',
       linecolor: 'rgba(0,0,0,0)',
       tickfont: { color: COLOR.texto, size: 10 },
+      tickmode: 'linear',
+      dtick: 1,
       ticks: '',
     };
     // Con las categorias del eje X arriba, el eje Y se lee de arriba abajo:
     // la primera fila del array queda en la parte superior.
     l.yaxis = {
+      type: 'category',
       autorange: 'reversed',
       gridcolor: 'rgba(0,0,0,0)',
       linecolor: 'rgba(0,0,0,0)',
       zeroline: false,
+      tickmode: 'linear',
+      dtick: 1,
       ticks: '',
       tickfont: { color: COLOR.tenue, size: 10 },
     };
