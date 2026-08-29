@@ -9,6 +9,7 @@ import { vistaCalidad, vistaResumen } from './vistas/resumen.js';
 import {
   vistaDiaSemana, vistaDiaria, vistaHoraria, vistaMensual, vistaPeriodo, vistaSemanal,
 } from './vistas/estacionales.js';
+import { vistaExtremos, vistaMatriz } from './vistas/matriz.js';
 
 /** @type {Record<string, (contexto: object) => Node>} */
 export const RENDERIZADORES = {
@@ -20,4 +21,6 @@ export const RENDERIZADORES = {
   diaSemana: vistaDiaSemana,
   diaria: vistaDiaria,
   horaria: vistaHoraria,
+  matriz: vistaMatriz,
+  extremos: vistaExtremos,
 };
