@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -67,212 +66,33 @@ def test_hash_contenido_es_estable_y_sensible() -> None:
 
 
 # --------------------------------------------------------------------------
-# Zonas horarias
+# Tiempo
 # --------------------------------------------------------------------------
-
-
-def test_transiciones_de_nueva_york_incluyen_los_dos_cambios_anuales() -> None:
-    zona = exportador.tabla_transiciones(
-        "America/New_York",
-        datetime(2024, 1, 1, tzinfo=timezone.utc),
-        datetime(2024, 12, 31, tzinfo=timezone.utc),
-    )
-    assert zona["name"] == "America/New_York"
-    desplazamientos = {offset for _, offset, *_ in zona["transitions"]}
-    assert desplazamientos == {-18000, -14400}
-    # 2024-03-10 07:00Z pasa a EDT y 2024-11-03 06:00Z vuelve a EST.
-    instantes = {marca for marca, *_ in zona["transitions"]}
-    assert int(datetime(2024, 3, 10, 7, tzinfo=timezone.utc).timestamp()) in instantes
-    assert int(datetime(2024, 11, 3, 6, tzinfo=timezone.utc).timestamp()) in instantes
-    abreviaturas = {abreviatura for _, _, abreviatura in zona["transitions"]}
-    assert abreviaturas == {"EST", "EDT"}
-
-
-def test_transiciones_de_tokio_estan_vacias() -> None:
-    """Asia/Tokyo no aplica horario de verano desde 1951."""
-
-    zona = exportador.tabla_transiciones(
-        "Asia/Tokyo",
-        datetime(2000, 1, 1, tzinfo=timezone.utc),
-        datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
-    assert zona["transitions"] == []
-    assert zona["initialOffset"] == 32400
-
-
-def test_transiciones_de_utc_estan_vacias() -> None:
-    zona = exportador.tabla_transiciones(
-        "UTC",
-        datetime(2017, 1, 1, tzinfo=timezone.utc),
-        datetime(2026, 1, 1, tzinfo=timezone.utc),
-    )
-    assert zona["transitions"] == []
-    assert zona["initialOffset"] == 0
-
-
-# --------------------------------------------------------------------------
-# Codificacion de series
-# --------------------------------------------------------------------------
-
-
-def _decodificar(serie: dict[str, object], clave: str) -> np.ndarray:
-    valores = serie[clave]
-    if serie["scale"] is None:
-        return np.array(valores, dtype=float)
-    return np.cumsum(np.array(valores, dtype=np.int64)) / serie["scale"]
-
-
-def test_la_serie_codificada_reproduce_los_precios_bit_a_bit() -> None:
-    for construir in escenarios.ESCENARIOS:
-        escenario = construir()
-        serie = exportador.construir_serie(
-            escenario.datos, escenario.nombre, 2024, COLUMNA_FECHA
-        )
-        for clave, columna in (("o", "open"), ("h", "high"), ("l", "low"), ("c", "close")):
-            esperado = escenario.datos[columna].to_numpy(dtype=float)
-            np.testing.assert_array_equal(_decodificar(serie, clave), esperado)
-
-
-def _epochs_publicados(serie: dict[str, object]) -> np.ndarray:
-    """Reconstruye las marcas absolutas igual que hace el decodificador web."""
-
-    return np.concatenate(
-        ([serie["t0"]], serie["t0"] + np.cumsum(np.array(serie["dt"], dtype=np.int64)))
-    )
-
-
-def test_la_serie_codificada_reproduce_las_marcas_de_tiempo() -> None:
-    escenario = escenarios.escenario_ny_otono()
-    serie = exportador.construir_serie(
-        escenario.datos, escenario.nombre, 2024, COLUMNA_FECHA
-    )
-    # Referencia independiente de la unidad interna de pandas.
-    esperado = np.array(
-        [int(marca.timestamp()) for marca in escenario.datos[COLUMNA_FECHA]],
-        dtype=np.int64,
-    )
-    np.testing.assert_array_equal(_epochs_publicados(serie), esperado)
 
 
 @pytest.mark.parametrize("unidad", ["s", "ms", "us", "ns"])
-def test_las_marcas_no_dependen_de_la_resolucion_de_pandas(unidad: str) -> None:
-    """pandas 2 elige la resolucion al analizar; el resultado no puede cambiar.
-
-    Con resolucion de microsegundos, asumir nanosegundos producia marcas mil
-    veces menores. La integracion continua lo detecto porque su version de
-    pandas resolvia distinto que la local.
-    """
+def test_los_epochs_no_dependen_de_la_resolucion_de_pandas(unidad: str) -> None:
+    """pandas 2 elige la resolucion al analizar; el resultado no puede cambiar."""
 
     escenario = escenarios.escenario_utc_continuo()
-    datos = escenario.datos.copy()
-    datos[COLUMNA_FECHA] = datos[COLUMNA_FECHA].dt.as_unit(unidad)
-    assert datos[COLUMNA_FECHA].dt.unit == unidad
-
-    serie = exportador.construir_serie(datos, escenario.nombre, 2021, COLUMNA_FECHA)
-    esperado = np.array(
-        [int(marca.timestamp()) for marca in escenario.datos[COLUMNA_FECHA]],
-        dtype=np.int64,
-    )
-    np.testing.assert_array_equal(_epochs_publicados(serie), esperado)
-    assert serie["t0"] == int(escenario.datos[COLUMNA_FECHA].iloc[0].timestamp())
+    marcas = escenario.datos[COLUMNA_FECHA]
+    absolutos, locales = exportador.epochs(marcas.dt.as_unit(unidad))
+    esperado = [int(marca.timestamp()) for marca in marcas]
+    assert absolutos == esperado
+    assert locales == esperado  # UTC: el epoch local coincide con el absoluto
 
 
-@pytest.mark.parametrize("unidad", ["s", "ms", "us", "ns"])
-def test_el_informe_y_la_serie_coinciden_en_cualquier_resolucion(unidad: str) -> None:
-    """El epoch de ``vista_resumen`` y el de la serie deben ser el mismo numero."""
+def test_el_epoch_local_incorpora_el_desplazamiento() -> None:
+    """Nueva York en noviembre: el epoch local va cuatro o cinco horas por detras."""
 
-    escenario = escenarios.escenario_utc_continuo()
-    datos = escenario.datos.copy()
-    datos[COLUMNA_FECHA] = datos[COLUMNA_FECHA].dt.as_unit(unidad)
-    activo = _activo(escenario)
-
-    serie = exportador.construir_serie(datos, escenario.nombre, 2021, COLUMNA_FECHA)
-    resumen = exportador.vista_resumen(datos, activo, COLUMNA_FECHA)
-    assert resumen["velas"]["t"][0] == serie["t0"]
-
-
-def test_los_desplazamientos_rle_se_expanden_correctamente() -> None:
     escenario = escenarios.escenario_ny_otono()
-    serie = exportador.construir_serie(
-        escenario.datos, escenario.nombre, 2024, COLUMNA_FECHA
-    )
-    expandido = np.empty(serie["count"], dtype=np.int64)
-    tramos = serie["off"]
-    for posicion, (indice, offset) in enumerate(tramos):
-        fin = tramos[posicion + 1][0] if posicion + 1 < len(tramos) else serie["count"]
-        expandido[indice:fin] = offset
-    esperado = np.array(
-        [
-            int(marca.utcoffset().total_seconds())
-            for marca in pd.to_datetime(escenario.datos[COLUMNA_FECHA])
-        ]
-    )
-    np.testing.assert_array_equal(expandido, esperado)
-    # El escenario cruza el cambio de horario: hay exactamente dos tramos.
-    assert len(tramos) == 2
-    assert [offset for _, offset in tramos] == [-14400, -18000]
-
-
-def _marco_precios(aperturas: list[float]) -> pd.DataFrame:
-    marcas = pd.to_datetime(
-        [f"2024-01-01T{indice:02d}:00:00Z" for indice in range(len(aperturas))], utc=True
-    )
-    return pd.DataFrame(
-        {
-            COLUMNA_FECHA: marcas,
-            "open": aperturas,
-            # Se mantienen los mismos decimales para no forzar otra escala.
-            "high": list(aperturas),
-            "low": list(aperturas),
-            "close": aperturas,
-        }
-    )
-
-
-@pytest.mark.parametrize(
-    ("aperturas", "motivo"),
-    [
-        ([1.0, 0.12345678901234567], "mas decimales de los admitidos"),
-        ([1e12 + 0.5, 1.000001], "el entero escalado desbordaria 2**53"),
-    ],
-)
-def test_la_escala_se_desactiva_cuando_no_es_exacta(
-    aperturas: list[float], motivo: str
-) -> None:
-    """Si el escalado entero no es demostrablemente exacto se usan dobles."""
-
-    serie = exportador.construir_serie(_marco_precios(aperturas), "RAW", 2024, COLUMNA_FECHA)
-    assert serie["scale"] is None, motivo
-    np.testing.assert_array_equal(
-        _decodificar(serie, "o"), np.array(aperturas, dtype=float)
-    )
-
-
-def test_la_escala_se_usa_cuando_es_demostrablemente_exacta() -> None:
-    """Un CSV con decimales acotados se publica como enteros escalados."""
-
-    serie = exportador.construir_serie(
-        _marco_precios([340.345, 341.255, 339.81]), "ESC", 2024, COLUMNA_FECHA
-    )
-    assert serie["scale"] is not None
-    assert all(isinstance(valor, int) for valor in serie["o"])
-    np.testing.assert_array_equal(
-        _decodificar(serie, "o"), np.array([340.345, 341.255, 339.81], dtype=float)
-    )
-
-
-def test_fragmentar_por_año_usa_el_año_local() -> None:
-    escenario = escenarios.escenario_tokio_semana_iso()
-    fragmentos = exportador.fragmentar_por_año(escenario.datos, COLUMNA_FECHA)
-    assert [año for año, _ in fragmentos] == [2020, 2021]
-    total = sum(len(marco) for _, marco in fragmentos)
-    assert total == len(escenario.datos)
-    primero = fragmentos[0][1]
-    assert set(pd.to_datetime(primero[COLUMNA_FECHA]).dt.year) == {2020}
+    absolutos, locales = exportador.epochs(escenario.datos[COLUMNA_FECHA])
+    desplazamientos = {local - absoluto for absoluto, local in zip(absolutos, locales)}
+    assert desplazamientos == {-14400, -18000}
 
 
 # --------------------------------------------------------------------------
-# Vistas precalculadas
+# Vistas
 # --------------------------------------------------------------------------
 
 
@@ -282,39 +102,41 @@ def entorno() -> tuple[pd.DataFrame, ActivoConfig]:
     return escenario.datos, _activo(escenario)
 
 
-def test_vistas_por_defecto_cubren_las_diez_vistas(entorno) -> None:
+def test_calcular_vistas_cubre_las_nueve_vistas(entorno) -> None:
     datos, activo = entorno
-    salida = exportador.vistas_por_defecto(datos, activo, COLUMNA_FECHA)
+    salida = exportador.calcular_vistas(datos, activo, COLUMNA_FECHA)
     assert set(salida) == {
-        "resumen",
-        "periodo",
-        "mensual",
-        "semanal",
-        "diaSemana",
-        "diaria",
-        "horaria",
-        "matriz",
-        "extremos",
+        "resumen", "periodo", "mensual", "semanal", "diaSemana",
+        "diaria", "horaria", "matriz", "extremos",
     }
 
 
-def test_vistas_por_defecto_son_json_estricto(entorno) -> None:
+def test_las_vistas_son_json_estricto(entorno) -> None:
     datos, activo = entorno
     texto = exportador.volcar_json(
-        exportador.vistas_por_defecto(datos, activo, COLUMNA_FECHA)
+        exportador.calcular_vistas(datos, activo, COLUMNA_FECHA)
     )
     recargado = json.loads(texto)
     assert recargado["resumen"]["metricas"]["velas"] == len(datos)
 
 
-def test_vista_resumen_coincide_con_las_transformaciones(entorno) -> None:
+def test_vista_resumen_publica_epoch_local_para_el_grafico(entorno) -> None:
     datos, activo = entorno
     salida = exportador.vista_resumen(datos, activo, COLUMNA_FECHA)
     metricas = vistas.metricas_resumen(datos, activo, COLUMNA_FECHA)
     assert salida["metricas"]["ultimo_cierre"] == metricas["ultimo_cierre"]
     assert salida["velas"]["total"] == len(datos)
     assert salida["velas"]["resumido"] is False
-    assert len(salida["velas"]["t"]) == len(datos)
+    assert len(salida["velas"]["lt"]) == len(datos)
+    assert salida["velas"]["lt"][0] == int(datos[COLUMNA_FECHA].iloc[0].timestamp())
+
+
+def test_vista_resumen_reduce_las_velas_por_encima_del_maximo(entorno) -> None:
+    """El grafico nunca recibe mas de MAX_VELAS_GRAFICO puntos."""
+
+    datos, activo = entorno
+    salida = exportador.vista_resumen(datos, activo, COLUMNA_FECHA)
+    assert salida["velas"]["mostradas"] <= vistas.MAX_VELAS_GRAFICO
 
 
 def test_vista_periodo_publica_pivote_de_doce_meses(entorno) -> None:
@@ -326,16 +148,37 @@ def test_vista_periodo_publica_pivote_de_doce_meses(entorno) -> None:
     assert salida["pivote"]["meses"][0][0] is None  # enero sin datos
 
 
+def test_las_vistas_estacionales_solo_publican_lo_que_dibujan(entorno) -> None:
+    """Cada fila lleva la clave, el promedio y el tamaño de muestra."""
+
+    datos, activo = entorno
+    mensual = exportador.vista_mensual(datos, activo, COLUMNA_FECHA)
+    assert set(mensual["estacional"][0]) == {"numero_mes", "promedio", "n"}
+    horaria = exportador.vista_horaria(datos, activo, COLUMNA_FECHA)
+    assert set(horaria["estacional"][0]) == {"hora", "promedio", "n"}
+    semanal = exportador.vista_semanal(datos, activo, COLUMNA_FECHA)
+    assert set(semanal["estacional"][0]) == {"semana_iso", "promedio", "n"}
+    assert math.isfinite(semanal["promedioGeneral"])
+
+
+def test_las_curvas_llevan_eje_y_retorno(entorno) -> None:
+    datos, activo = entorno
+    curvas = exportador.vista_mensual(datos, activo, COLUMNA_FECHA)["curvas"]
+    assert curvas
+    assert set(curvas[0]) == {"clave", "dia_mes", "retorno"}
+    assert len(curvas[0]["dia_mes"]) == len(curvas[0]["retorno"])
+
+
 def test_vista_matriz_enmascara_por_minimo(entorno) -> None:
     datos, activo = entorno
-    salida = exportador.vista_matriz(
-        datos, activo, COLUMNA_FECHA, minimo_observaciones=1000
-    )
+    salida = exportador.vista_matriz(datos, activo, COLUMNA_FECHA)
     assert salida["disponible"] is True
-    assert all(valor is None for fila in salida["valores"] for valor in fila)
+    assert salida["minimoObservaciones"] == exportador.MINIMO_MATRIZ
+    assert len(salida["valores"]) == len(salida["horas"])
+    assert all(len(fila) == len(salida["dias"]) for fila in salida["valores"])
 
 
-def test_vista_matriz_no_disponible_sin_intradia(entorno) -> None:
+def test_vista_matriz_y_horaria_no_disponibles_sin_intradia(entorno) -> None:
     datos, _ = entorno
     diario = _activo(escenarios.escenario_utc_continuo(), temporalidad="1d")
     assert exportador.vista_matriz(datos, diario, COLUMNA_FECHA) == {"disponible": False}
@@ -346,26 +189,13 @@ def test_vista_extremos_respeta_el_orden_documentado(entorno) -> None:
     """Ambiguedad A-6: orden por retorno con signo, no por magnitud."""
 
     datos, activo = entorno
-    salida = exportador.vista_extremos(datos, activo, COLUMNA_FECHA, n=3)
+    salida = exportador.vista_extremos(datos, activo, COLUMNA_FECHA)
     retornos = [fila["return_percent"] for fila in salida["filas"]]
     assert retornos == sorted(retornos, reverse=True)
-    assert len(salida["filas"]) <= 6
-
-
-def test_vista_extremos_con_umbral(entorno) -> None:
-    datos, activo = entorno
-    salida = exportador.vista_extremos(
-        datos, activo, COLUMNA_FECHA, umbral=0.5, periodo="Vela base"
-    )
-    assert salida["umbral"] == 0.5
-    assert all(abs(fila["return_percent"]) >= 0.5 - 1e-10 for fila in salida["filas"])
-
-
-def test_vista_semanal_informa_de_los_excluidos_por_iqr(entorno) -> None:
-    datos, activo = entorno
-    sin_filtro = exportador.vista_semanal(datos, activo, COLUMNA_FECHA)
-    assert sin_filtro["eliminados"] == 0
-    assert math.isfinite(sin_filtro["promedioGeneral"])
+    assert len(salida["filas"]) <= 2 * exportador.N_EXTREMOS
+    assert set(salida["filas"][0]) == {
+        "inicioLocal", "return_percent", "cantidad_registros",
+    }
 
 
 # --------------------------------------------------------------------------
@@ -373,18 +203,16 @@ def test_vista_semanal_informa_de_los_excluidos_por_iqr(entorno) -> None:
 # --------------------------------------------------------------------------
 
 
-def test_el_informe_no_publica_rutas_absolutas() -> None:
+def _resultado(datos: pd.DataFrame):
     from src.datos import ResultadoValidacion
 
-    escenario = escenarios.escenario_utc_continuo()
-    activo = _activo(escenario)
-    resultado = ResultadoValidacion(
-        datos_originales=escenario.datos,
-        datos_validos=escenario.datos,
+    return ResultadoValidacion(
+        datos_originales=datos,
+        datos_validos=datos,
         invalidos=pd.DataFrame(columns=["motivo_invalidez"]),
         resumen={
-            "filas_totales": len(escenario.datos),
-            "filas_validas": len(escenario.datos),
+            "filas_totales": len(datos),
+            "filas_validas": len(datos),
             "filas_invalidas": 0,
             "porcentaje_valido": 100.0,
             "positivas": 1,
@@ -395,43 +223,30 @@ def test_el_informe_no_publica_rutas_absolutas() -> None:
         },
         advertencias=[],
     )
-    informe = exportador.construir_informe(
-        resultado, activo, escenario.datos, COLUMNA_FECHA
-    )
-    texto = exportador.volcar_json(informe)
-    assert "C:\\\\" not in texto and "/home/" not in texto
-    assert informe["observado"]["dias"] == [0, 1, 2, 3, 4, 5, 6]
-    assert informe["observado"]["horas"] == list(range(24))
-    assert informe["schemaVersion"] == exportador.SCHEMA_VERSION
 
+
+def test_el_informe_no_publica_rutas_absolutas_ni_series() -> None:
+    escenario = escenarios.escenario_utc_continuo()
+    activo = _activo(escenario)
+    informe = exportador.construir_informe(activo, escenario.datos, COLUMNA_FECHA)
+    texto = exportador.volcar_json(informe)
+
+    assert "C:\\\\" not in texto and "/home/" not in texto
+    assert informe["schemaVersion"] == exportador.SCHEMA_VERSION
+    # El informe es autosuficiente: identidad y vistas, nada mas.
+    assert set(informe) == {"schemaVersion", "processingVersion", "symbol", "vistas"}
+
+
+def test_la_entrada_del_manifiesto_describe_el_activo() -> None:
+    escenario = escenarios.escenario_utc_continuo()
+    activo = _activo(escenario)
     entrada = exportador.entrada_manifiesto(
-        activo, informe, [2021], {"name": "UTC", "initialOffset": 0, "transitions": []}
+        activo, _resultado(escenario.datos), escenario.datos, COLUMNA_FECHA
     )
-    assert entrada["archivo"] == "sintetico.csv"
-    assert entrada["sesionReconocida"] == "24/7"
+    assert entrada["symbol"] == activo.simbolo
     assert entrada["intradia"] is True
     assert entrada["baseMinutes"] == 60
-
-
-@pytest.mark.parametrize(
-    ("sesion", "esperado"),
-    [
-        ("24/7", "24/7"),
-        ("24/5", "24/5"),
-        ("Dukascopy 24/5 extendida", None),
-        ("NYSE regular observada", None),
-    ],
-)
-def test_sesion_reconocida_replica_la_igualdad_exacta(
-    sesion: str, esperado: str | None
-) -> None:
-    """Ambiguedad A-3 expuesta explicitamente en el manifiesto."""
-
-    escenario = escenarios.escenario_utc_continuo()
-    activo = _activo(escenario, sesion=sesion)
-    informe = {"calidad": {k: None for k in (
-        "fechaInicial", "fechaFinal", "filasTotales", "filasValidas",
-        "porcentajeValido", "cobertura",
-    )}}
-    entrada = exportador.entrada_manifiesto(activo, informe, [], {})
-    assert entrada["sesionReconocida"] == esperado
+    assert entrada["filasValidas"] == len(escenario.datos)
+    assert entrada["primeraFecha"].startswith("2021-03-01")
+    # Nunca se publica la ruta del CSV de origen.
+    assert "archivo" not in entrada

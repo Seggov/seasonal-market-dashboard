@@ -19,8 +19,6 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pandas as pd
-
 RAIZ = Path(__file__).resolve().parents[1]
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
@@ -92,45 +90,25 @@ def _copiar_shell(destino: Path) -> None:
 def _procesar_activo(
     activo: ActivoConfig, destino_datos: Path, verboso: bool
 ) -> dict[str, object]:
-    """Valida un CSV y emite ``report.json`` y las series por año."""
+    """Valida un CSV y emite el ``report.json`` con sus nueve vistas."""
 
     comienzo = time.perf_counter()
     resultado = leer_y_validar_datos(activo)
     datos, columna_fecha = vistas.preparar_datos(resultado.datos_validos, activo)
 
-    informe = exportador.construir_informe(resultado, activo, datos, columna_fecha)
-    texto_informe = exportador.volcar_json(informe)
-    nombre_informe = f"report.{exportador.hash_contenido(texto_informe)}.json"
-    bytes_informe = _escribir(destino_datos / activo.simbolo / nombre_informe, texto_informe)
+    informe = exportador.construir_informe(activo, datos, columna_fecha)
+    texto = exportador.volcar_json(informe)
+    nombre = f"report.{exportador.hash_contenido(texto)}.json"
+    tamano = _escribir(destino_datos / activo.simbolo / nombre, texto)
 
-    fragmentos = exportador.fragmentar_por_año(datos, columna_fecha)
-    series: dict[str, str] = {}
-    bytes_series = 0
-    for año, marco in fragmentos:
-        carga = exportador.construir_serie(marco, activo.simbolo, año, columna_fecha)
-        texto = exportador.volcar_json(carga)
-        nombre = f"series-{año}.{exportador.hash_contenido(texto)}.json"
-        bytes_series += _escribir(destino_datos / activo.simbolo / nombre, texto)
-        series[str(año)] = f"{activo.simbolo}/{nombre}"
-
-    fechas = pd.to_datetime(datos[columna_fecha])
-    zona = exportador.tabla_transiciones(
-        activo.zona_horaria, fechas.min().to_pydatetime(), fechas.max().to_pydatetime()
-    )
-    entrada = exportador.entrada_manifiesto(
-        activo, informe, [año for año, _ in fragmentos], zona
-    )
-    entrada["report"] = f"{activo.simbolo}/{nombre_informe}"
-    entrada["series"] = series
-    entrada["bytes"] = {"report": bytes_informe, "series": bytes_series}
+    entrada = exportador.entrada_manifiesto(activo, resultado, datos, columna_fecha)
+    entrada["report"] = f"{activo.simbolo}/{nombre}"
+    entrada["bytes"] = tamano
 
     if verboso:
-        transcurrido = time.perf_counter() - comienzo
         print(
             f"  {activo.simbolo:<16} {len(datos):>7,} velas  "
-            f"{len(fragmentos):>3} años  "
-            f"{(bytes_informe + bytes_series) / 1_048_576:>6.2f} MB  "
-            f"{transcurrido:>5.1f}s"
+            f"{tamano / 1024:>6.0f} KB  {time.perf_counter() - comienzo:>5.1f}s"
         )
     return entrada
 

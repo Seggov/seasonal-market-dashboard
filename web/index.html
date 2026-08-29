@@ -1,131 +1,27 @@
 <!doctype html>
-<html lang="es" data-tema="claro">
+<html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Estacionalidad de mercados · Panel estático</title>
-  <meta name="description" content="Análisis estacional de ocho mercados a partir de series horarias locales verificadas. Sitio estático, sin backend.">
-  <meta name="color-scheme" content="light dark">
+  <title>Seasonal Analysis</title>
+  <meta name="description" content="Análisis estacional de ocho mercados. Visualización estática de resultados calculados en Python.">
+  <meta name="color-scheme" content="dark">
   <link rel="stylesheet" href="assets/app.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
   <script defer src="assets/vendor/plotly-2.35.2.min.js"></script>
   <script type="module" src="assets/app.js"></script>
 </head>
 <body>
-  <a class="salto-contenido" href="#contenido">Saltar al contenido</a>
-
-  <header class="cabecera">
-    <div class="cabecera__marca">
-      <span class="cabecera__logo" aria-hidden="true">📈</span>
-      <div>
-        <p class="kicker">Catálogo H1 local</p>
-        <h1 class="cabecera__titulo">Estacionalidad de mercados</h1>
-      </div>
-    </div>
-    <div class="cabecera__acciones">
-      <button type="button" id="alternar-panel" class="boton boton--icono" aria-expanded="false" aria-controls="panel">
-        <span aria-hidden="true">☰</span><span class="solo-lectores">Mostrar filtros</span>
-      </button>
-      <button type="button" id="alternar-tema" class="boton boton--icono" aria-pressed="false">
-        <span aria-hidden="true" id="icono-tema">🌙</span><span class="solo-lectores">Cambiar entre tema claro y oscuro</span>
-      </button>
-    </div>
+  <header class="top">
+    <div class="brand">SEASONAL<span>/ANALYSIS</span></div>
+    <nav class="symbols" id="symbols" aria-label="Instrumento"></nav>
   </header>
 
-  <div class="disposicion">
-    <aside class="panel" id="panel" aria-label="Filtros y selección">
-      <div class="panel__contenido" id="panel-contenido">
-        <section class="panel__bloque">
-          <h2 class="panel__titulo">Mercado</h2>
-          <label class="campo">
-            <span class="campo__etiqueta">Categoría</span>
-            <select id="selector-categoria" class="campo__control"></select>
-          </label>
-          <label class="campo">
-            <span class="campo__etiqueta">Activo</span>
-            <select id="selector-activo" class="campo__control"></select>
-          </label>
-          <button type="button" id="boton-analizar" class="boton boton--primario boton--ancho">Analizar activo</button>
-          <button type="button" id="boton-catalogo" class="boton boton--ancho">Volver al catálogo</button>
-        </section>
+  <div class="meta" id="meta"></div>
 
-        <section class="panel__bloque" id="bloque-sesion" hidden>
-          <h2 class="panel__titulo">Sesión</h2>
-          <p class="panel__ayuda" id="sesion-ayuda"></p>
-          <div class="grupo-radio" role="radiogroup" aria-label="Definición de sesión">
-            <label class="radio"><input type="radio" name="sesion-modo" value="Declarada" checked><span>Declarada</span></label>
-            <label class="radio"><input type="radio" name="sesion-modo" value="Observada"><span>Observada</span></label>
-            <label class="radio"><input type="radio" name="sesion-modo" value="Personalizada"><span>Personalizada</span></label>
-          </div>
-          <div id="sesion-dias" class="campo" hidden>
-            <span class="campo__etiqueta">Días</span>
-            <div class="casillas" id="casillas-dias"></div>
-          </div>
-          <div id="sesion-horas" class="campo" hidden>
-            <span class="campo__etiqueta">Horas observadas</span>
-            <div class="casillas casillas--horas" id="casillas-horas"></div>
-          </div>
-          <div id="sesion-personalizada" class="campo campo--par" hidden>
-            <label class="campo">
-              <span class="campo__etiqueta">Hora inicial</span>
-              <input type="time" id="sesion-inicio" class="campo__control" value="09:00" step="60">
-            </label>
-            <label class="campo">
-              <span class="campo__etiqueta">Hora final (excluida)</span>
-              <input type="time" id="sesion-fin" class="campo__control" value="17:00" step="60">
-            </label>
-          </div>
-        </section>
+  <nav class="views" id="views" aria-label="Vista"></nav>
 
-        <section class="panel__bloque" id="bloque-datos" hidden>
-          <h2 class="panel__titulo">Datos publicados</h2>
-          <p class="panel__ayuda" id="datos-generados"></p>
-          <button type="button" id="boton-recargar" class="boton boton--ancho">Recargar versión publicada</button>
-          <button type="button" id="boton-limpiar" class="boton boton--ancho">Limpiar caché local</button>
-          <p class="panel__nota">No se descargan datos de mercado. Una actualización automática requeriría un pipeline de descarga y un workflow programado.</p>
-        </section>
-      </div>
-    </aside>
+  <main id="view" class="view" aria-live="polite"></main>
 
-    <main id="contenido" class="contenido">
-      <div id="aviso" class="aviso" role="status" hidden></div>
-
-      <section id="pantalla-catalogo" class="pantalla">
-        <p class="subtitulo">Series horarias verificadas de Binance, Yahoo Finance y Dukascopy. Los índices oficiales y sus CFD se mantienen separados y nunca se mezclan.</p>
-        <div class="tarjeta">
-          <h2 class="tarjeta__titulo">1. Seleccione una categoría</h2>
-          <p class="tarjeta__copia">Cada análisis usa exclusivamente un archivo local ya validado. Los precios Dukascopy son bid y sus volúmenes no son comparables con Binance o Yahoo.</p>
-          <div class="botonera" id="botonera-categorias"></div>
-        </div>
-        <h2 class="seccion__titulo" id="titulo-categoria"></h2>
-        <div id="tabla-catalogo" class="tabla-envoltorio"></div>
-      </section>
-
-      <section id="pantalla-analisis" class="pantalla" hidden>
-        <div class="cabecera-activo">
-          <p class="kicker">Panel estadístico</p>
-          <h2 class="cabecera-activo__titulo" id="titulo-activo"></h2>
-          <p class="metadata" id="metadata-activo"></p>
-        </div>
-
-        <nav class="navegacion" id="navegacion-vistas" aria-label="Vistas de análisis"></nav>
-        <p class="detalle-sesion" id="detalle-sesion"></p>
-
-        <div id="vista" class="vista" aria-live="polite"></div>
-      </section>
-    </main>
-  </div>
-
-  <footer class="pie">
-    <p>Panel estático generado desde CSV locales. Sin backend, sin descargas en tiempo real y sin ejecución de Python en el navegador.</p>
-    <p id="pie-version"></p>
-  </footer>
-
-  <template id="plantilla-cargando">
-    <div class="estado estado--cargando">
-      <span class="giro" aria-hidden="true"></span>
-      <p>Calculando…</p>
-    </div>
-  </template>
+  <footer class="foot" id="foot"></footer>
 </body>
 </html>

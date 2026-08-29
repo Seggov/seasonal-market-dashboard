@@ -23,6 +23,13 @@ MAX_SITIO_MB = 200.0
 MAX_INICIAL_MB = 6.0
 MAX_FRAGMENTO_MB = 8.0
 
+ESQUEMA = 2
+
+VISTAS_ESPERADAS = (
+    "resumen", "periodo", "mensual", "semanal", "diaSemana",
+    "diaria", "horaria", "matriz", "extremos",
+)
+
 # GitHub Pages ignora los directorios que empiezan por guion bajo sin .nojekyll.
 ARCHIVOS_OBLIGATORIOS = ("index.html", ".nojekyll", "data/manifest.json")
 
@@ -139,41 +146,41 @@ def comprobar_manifiesto(dist: Path, informe: Informe) -> None:
     if not ruta.is_file():
         return
     manifiesto = json.loads(ruta.read_text(encoding="utf-8"))
-    if manifiesto.get("schemaVersion") != 1:
+    if manifiesto.get("schemaVersion") != ESQUEMA:
         informe.fallo(f"schemaVersion inesperada: {manifiesto.get('schemaVersion')!r}.")
     for campo in ("generatedAt", "processingVersion", "contentHash", "assets"):
         if not manifiesto.get(campo):
             informe.fallo(f"El manifiesto no declara {campo!r}.")
 
     base = dist / "data"
+    referenciados = {ruta}
     for activo in manifiesto.get("assets", []):
         simbolo = activo.get("symbol", "<sin simbolo>")
-        enlaces = [activo.get("report", "")] + list(activo.get("series", {}).values())
-        for enlace in enlaces:
-            if not enlace:
-                informe.fallo(f"{simbolo}: enlace vacío en el manifiesto.")
-                continue
-            if enlace.startswith("/") or ".." in enlace:
-                informe.fallo(f"{simbolo}: el enlace {enlace!r} no es relativo y seguro.")
-            if not (base / enlace).is_file():
-                informe.fallo(f"{simbolo}: el manifiesto apunta a {enlace!r}, que no existe.")
-        años_series = {int(clave) for clave in activo.get("series", {})}
-        if años_series != set(activo.get("years", [])):
-            informe.fallo(f"{simbolo}: 'years' y 'series' no coinciden.")
+        enlace = activo.get("report", "")
+        if not enlace:
+            informe.fallo(f"{simbolo}: sin informe en el manifiesto.")
+            continue
+        if enlace.startswith("/") or ".." in enlace:
+            informe.fallo(f"{simbolo}: el enlace {enlace!r} no es relativo y seguro.")
+        destino = base / enlace
+        if not destino.is_file():
+            informe.fallo(f"{simbolo}: el manifiesto apunta a {enlace!r}, que no existe.")
+        referenciados.add(destino)
+        # Cada informe debe traer las nueve vistas ya calculadas.
+        if destino.is_file():
+            vistas = json.loads(destino.read_text(encoding="utf-8")).get("vistas", {})
+            faltan = [clave for clave in VISTAS_ESPERADAS if clave not in vistas]
+            if faltan:
+                informe.fallo(f"{simbolo}: faltan vistas en el informe: {', '.join(faltan)}.")
 
-    referenciados = {dist / "data" / "manifest.json"}
-    for activo in manifiesto.get("assets", []):
-        referenciados.add(base / activo.get("report", ""))
-        for enlace in activo.get("series", {}).values():
-            referenciados.add(base / enlace)
     huerfanos = [
-        ruta.relative_to(dist).as_posix()
-        for ruta in base.rglob("*.json")
-        if ruta.is_file() and ruta not in referenciados
+        item.relative_to(dist).as_posix()
+        for item in base.rglob("*.json")
+        if item.is_file() and item not in referenciados
     ]
     if huerfanos:
         informe.aviso(
-            f"{len(huerfanos)} archivo(s) de datos no referenciados por el manifiesto: "
+            f"{len(huerfanos)} archivo(s) de datos no referenciados: "
             + ", ".join(sorted(huerfanos)[:5])
         )
 

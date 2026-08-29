@@ -1,268 +1,238 @@
 /**
- * Envoltorio de Plotly con la identidad visual del panel.
+ * Envoltorio de Plotly con el aspecto del terminal.
  *
- * Plotly se carga de forma diferida desde `assets/vendor/`, con version fijada
- * (2.35.2) y sin CDN: el sitio funciona sin acceso a terceros.
- *
- * Los ejes temporales reciben cadenas ISO SIN zona, construidas desde el epoch
- * local del mercado, para que Plotly las dibuje tal cual y no las desplace al
- * huso del navegador.
+ * Plotly 2.35.2 va vendorizado, sin CDN. Los ejes temporales reciben la hora de
+ * pared del mercado, nunca la del navegador.
  */
 
-import { elemento, ejeTemporal } from './ui.js';
+import { elemento } from './ui.js';
 
-export const COLORES = {
-  azul: '#315b7d',
-  verde: '#2f7d69',
-  rojo: '#a75151',
-  gris: '#73808c',
-  arena: '#d5b36a',
+export const COLOR = {
+  fondo: '#1e222d',
+  borde: '#2a2e39',
+  rejilla: '#252a36',
+  texto: '#d1d4dc',
+  tenue: '#787b86',
+  acento: '#2962ff',
+  sube: '#26a69a',
+  baja: '#ef5350',
 };
 
-const CONFIGURACION = {
-  displayModeBar: false,
-  responsive: true,
-  locale: 'es',
-  scrollZoom: false,
-};
+const CONFIG = { displayModeBar: false, responsive: true, scrollZoom: false, locale: 'es' };
 
-/** Espera a que el bundle vendorizado este disponible. */
-export function listo() {
+const FUENTE = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+
+/** Espera al bundle vendorizado. */
+function listo() {
   if (window.Plotly) return Promise.resolve(window.Plotly);
-  return new Promise((resolver, rechazar) => {
-    let intentos = 0;
-    const temporizador = setInterval(() => {
-      if (window.Plotly) {
-        clearInterval(temporizador);
-        resolver(window.Plotly);
-      } else if ((intentos += 1) > 200) {
-        clearInterval(temporizador);
-        rechazar(new Error('No se pudo cargar la biblioteca de gráficos.'));
-      }
+  return new Promise((ok, fallo) => {
+    let n = 0;
+    const t = setInterval(() => {
+      if (window.Plotly) { clearInterval(t); ok(window.Plotly); }
+      else if ((n += 1) > 200) { clearInterval(t); fallo(new Error('Plotly no disponible')); }
     }, 50);
   });
 }
 
-function paleta() {
-  const estilo = getComputedStyle(document.documentElement);
-  const leer = (nombre) => estilo.getPropertyValue(nombre).trim();
-  return {
-    superficie: leer('--superficie') || '#ffffff',
-    superficie2: leer('--superficie-2') || '#edf2f5',
-    tinta: leer('--tinta') || '#162b3a',
-    tintaSuave: leer('--tinta-suave') || '#5e6f7b',
-    borde: leer('--borde') || '#d8e0e5',
-    rejilla: leer('--rejilla') || '#e7ecef',
-    acento: leer('--acento') || '#2f6285',
-  };
-}
-
-function disposicionBase(titulo, ejeY, altura) {
-  const tema = paleta();
-  return {
-    title: { text: titulo, font: { size: 15, color: tema.tinta }, x: 0, xanchor: 'left' },
-    paper_bgcolor: tema.superficie,
-    plot_bgcolor: tema.superficie,
-    font: { family: 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif', color: tema.tintaSuave, size: 12 },
-    margin: { l: 52, r: 18, t: 44, b: 44 },
-    height: altura,
-    hovermode: 'x unified',
-    showlegend: false,
-    yaxis: {
-      title: { text: ejeY, font: { color: tema.tintaSuave } },
-      gridcolor: tema.rejilla,
-      zerolinecolor: tema.borde,
-      tickfont: { color: tema.tintaSuave },
-    },
-    xaxis: {
-      showgrid: false,
-      linecolor: tema.borde,
-      tickfont: { color: tema.tintaSuave },
-      automargin: true,
-    },
-    hoverlabel: { bgcolor: tema.superficie2, font: { color: tema.tinta }, bordercolor: tema.borde },
-  };
-}
-
-/**
- * Reajusta cada grafico al ancho real de su contenedor.
- *
- * La opcion `responsive` de Plotly solo reacciona al evento `resize` de la
- * ventana, asi que no cubre los cambios de ancho que provoca el propio diseno
- * -- abrir el panel lateral, girar el dispositivo o pasar a otra vista con
- * rejilla distinta. Un `ResizeObserver` por lienzo si los cubre todos.
- */
 function reajustar(nodo) {
-  // Un nodo oculto mide cero: reajustarlo ahi rompe la disposicion.
   if (!nodo?.data || !nodo.isConnected || nodo.clientWidth < 1) return;
   window.Plotly?.Plots.resize(nodo);
 }
 
-const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver((entradas) => {
-  for (const entrada of entradas) reajustar(entrada.target);
-});
+// El observador cubre los cambios de ancho que no mueven la ventana; el oyente
+// de resize cubre el giro del dispositivo sin depender del ciclo de render.
+const observador = typeof ResizeObserver === 'undefined' ? null
+  : new ResizeObserver((entradas) => { for (const e of entradas) reajustar(e.target); });
 
-// El observador cubre los cambios de ancho que no mueven la ventana, pero sus
-// callbacks dependen del ciclo de render. Este oyente cubre el caso mas comun
-// -- girar el dispositivo o redimensionar la ventana -- sin esa dependencia.
-let temporizadorReajuste = null;
+let rebote = null;
 window.addEventListener('resize', () => {
-  clearTimeout(temporizadorReajuste);
-  temporizadorReajuste = setTimeout(() => {
-    for (const nodo of document.querySelectorAll('.grafico')) reajustar(nodo);
+  clearTimeout(rebote);
+  rebote = setTimeout(() => {
+    for (const n of document.querySelectorAll('.chart')) reajustar(n);
   }, 120);
 });
 
-/** Contenedor de un grafico; el dibujado ocurre cuando Plotly esta listo. */
+function base(titulo, ejeY, altura) {
+  return {
+    title: {
+      text: titulo ? titulo.toUpperCase() : '',
+      font: { size: 11, color: COLOR.tenue, family: FUENTE },
+      x: 0, xanchor: 'left', y: 1, yanchor: 'top', pad: { l: 6, t: 10 },
+    },
+    paper_bgcolor: COLOR.fondo,
+    plot_bgcolor: COLOR.fondo,
+    font: { family: FUENTE, color: COLOR.tenue, size: 10 },
+    margin: { l: 52, r: 14, t: titulo ? 34 : 12, b: 34 },
+    height: altura,
+    hovermode: 'x unified',
+    showlegend: false,
+    xaxis: {
+      showgrid: false, linecolor: COLOR.borde, zeroline: false,
+      tickfont: { color: COLOR.tenue, size: 10 }, automargin: true,
+    },
+    yaxis: {
+      title: ejeY ? { text: ejeY, font: { color: COLOR.tenue, size: 10 } } : undefined,
+      gridcolor: COLOR.rejilla, zerolinecolor: COLOR.borde, zerolinewidth: 1,
+      tickfont: { color: COLOR.tenue, size: 10 },
+    },
+    hoverlabel: {
+      bgcolor: '#131722', bordercolor: COLOR.borde,
+      font: { color: COLOR.texto, family: FUENTE, size: 11 },
+    },
+  };
+}
+
+/**
+ * Crea el contenedor y dibuja en cuanto esta insertado en el documento.
+ *
+ * El nodo se devuelve antes de que quien lo pide lo inserte, asi que dibujar de
+ * inmediato mediria un elemento desconectado y Plotly caeria a su ancho por
+ * defecto. Se espera a un macrotask -- para entonces el DOM ya esta montado --
+ * y se reajusta una vez mas por si el ancho todavia no era el definitivo.
+ */
 function lienzo(dibujar, altura) {
-  const nodo = elemento('div', { clase: 'grafico', style: `min-height:${altura}px` });
+  const nodo = elemento('div', { clase: 'chart panel', style: `min-height:${altura}px` });
   listo()
+    .then((Plotly) => new Promise((seguir) => { setTimeout(() => seguir(Plotly), 0); }))
     .then((Plotly) => {
       dibujar(Plotly, nodo);
       observador?.observe(nodo);
+      setTimeout(() => reajustar(nodo), 0);
     })
-    .catch((error) => {
-      nodo.classList.add('estado', 'estado--error');
-      nodo.textContent = error.message;
-    });
+    .catch((e) => { nodo.className = 'empty empty--error'; nodo.textContent = e.message; });
   return nodo;
 }
 
-/** Barras verdes/rojas segun el signo. */
-export function barras(x, y, { titulo, ejeY = 'Retorno (%)', altura = 380, etiquetas = null } = {}) {
+/** Barras con color por signo. */
+export function barras(x, y, { titulo, ejeY = '%', altura = 300, etiquetas = true } = {}) {
   return lienzo((Plotly, nodo) => {
-    const tema = paleta();
-    const colores = y.map((valor) => (Number(valor) >= 0 ? COLORES.verde : COLORES.rojo));
-    const disposicion = disposicionBase(titulo, ejeY, altura);
-    disposicion.bargap = 0.22;
-    disposicion.shapes = [{
-      type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0,
-      line: { color: tema.borde, width: 1 },
-    }];
+    const l = base(titulo, ejeY, altura);
+    l.bargap = 0.25;
     Plotly.newPlot(nodo, [{
       type: 'bar',
       x,
       y,
-      marker: { color: colores },
-      text: etiquetas ?? y.map((valor) => (Number.isFinite(valor) ? `${valor.toFixed(2)}%` : '')),
+      marker: { color: y.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)) },
+      text: etiquetas ? y.map((v) => (Number.isFinite(v) ? v.toFixed(2) : '')) : undefined,
       textposition: 'outside',
+      textfont: { size: 9, color: COLOR.tenue },
       cliponaxis: false,
-      hovertemplate: '%{x}<br>%{y:.2f}%<extra></extra>',
-    }], disposicion, CONFIGURACION);
+      hovertemplate: '%{x}  %{y:.2f}%<extra></extra>',
+    }], l, CONFIG);
   }, altura);
 }
 
-/** Serie de linea con marcadores y linea de promedio opcional. */
-export function linea(x, y, { titulo, ejeY = 'Retorno (%)', altura = 330, promedio = null, ejeFechas = false } = {}) {
+/** Barras horizontales, para rankings. */
+export function barrasH(y, x, { titulo, altura = 380 } = {}) {
   return lienzo((Plotly, nodo) => {
-    const tema = paleta();
-    const disposicion = disposicionBase(titulo, ejeY, altura);
-    if (ejeFechas) disposicion.xaxis.type = 'date';
-    disposicion.shapes = [{
-      type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0,
-      line: { color: tema.borde, width: 1 },
-    }];
-    if (promedio !== null && Number.isFinite(promedio)) {
-      disposicion.shapes.push({
-        type: 'line', xref: 'paper', x0: 0, x1: 1, y0: promedio, y1: promedio,
-        line: { color: COLORES.arena, width: 1.5, dash: 'dash' },
-      });
-      disposicion.annotations = [{
-        xref: 'paper', x: 0, y: promedio, xanchor: 'left', yanchor: 'bottom',
-        text: `Promedio ${promedio.toFixed(2)}%`, showarrow: false,
-        font: { size: 11, color: COLORES.arena },
+    const l = base(titulo, '', altura);
+    l.margin.l = 120;
+    l.hovermode = 'closest';
+    l.yaxis.autorange = 'reversed';
+    l.yaxis.gridcolor = 'rgba(0,0,0,0)';
+    l.xaxis.gridcolor = COLOR.rejilla;
+    l.xaxis.showgrid = true;
+    l.xaxis.zeroline = true;
+    l.xaxis.zerolinecolor = COLOR.borde;
+    Plotly.newPlot(nodo, [{
+      type: 'bar',
+      orientation: 'h',
+      x,
+      y,
+      marker: { color: x.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)) },
+      text: x.map((v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '')),
+      textposition: 'outside',
+      textfont: { size: 9, color: COLOR.tenue },
+      cliponaxis: false,
+      hovertemplate: '%{y}  %{x:.2f}%<extra></extra>',
+    }], l, CONFIG);
+  }, altura);
+}
+
+/** Linea con marcadores y referencia opcional. */
+export function linea(x, y, { titulo, ejeY = '%', altura = 230, referencia = null } = {}) {
+  return lienzo((Plotly, nodo) => {
+    const l = base(titulo, ejeY, altura);
+    if (referencia !== null && Number.isFinite(referencia)) {
+      l.shapes = [{
+        type: 'line', xref: 'paper', x0: 0, x1: 1, y0: referencia, y1: referencia,
+        line: { color: COLOR.acento, width: 1, dash: 'dot' },
       }];
     }
     Plotly.newPlot(nodo, [{
       type: 'scatter',
-      mode: 'lines+markers',
+      mode: 'lines',
       x,
       y,
-      line: { color: tema.acento, width: 2 },
-      marker: { size: 4 },
+      line: { color: COLOR.acento, width: 1.6, shape: 'spline', smoothing: 0.4 },
       connectgaps: false,
-      hovertemplate: '%{x}<br>%{y:.2f}%<extra></extra>',
-    }], disposicion, CONFIGURACION);
+      fill: 'tozeroy',
+      fillcolor: 'rgba(41,98,255,.08)',
+      hovertemplate: '%{x}  %{y:.2f}%<extra></extra>',
+    }], l, CONFIG);
   }, altura);
 }
 
-/** Grafico de velas OHLC. */
-export function velas(datos, { titulo = 'Evolución del precio', altura = 430 } = {}) {
+/** Velas OHLC. */
+export function velas(datos, { titulo = 'Precio', altura = 400 } = {}) {
   return lienzo((Plotly, nodo) => {
-    const disposicion = disposicionBase(titulo, 'Precio', altura);
-    disposicion.xaxis.type = 'date';
-    disposicion.xaxis.rangeslider = { visible: false };
-    disposicion.hovermode = 'x';
+    const l = base(titulo, '', altura);
+    l.xaxis.type = 'date';
+    l.xaxis.rangeslider = { visible: false };
+    l.hovermode = 'x';
+    l.yaxis.side = 'right';
+    l.margin.l = 14;
+    l.margin.r = 58;
     Plotly.newPlot(nodo, [{
       type: 'candlestick',
-      x: datos.lt.map(ejeTemporal),
+      x: datos.x,
       open: datos.o,
       high: datos.h,
       low: datos.l,
       close: datos.c,
-      increasing: { line: { color: COLORES.verde }, fillcolor: COLORES.verde },
-      decreasing: { line: { color: COLORES.rojo }, fillcolor: COLORES.rojo },
-      name: 'OHLC',
-    }], disposicion, CONFIGURACION);
+      increasing: { line: { color: COLOR.sube, width: 1 }, fillcolor: COLOR.sube },
+      decreasing: { line: { color: COLOR.baja, width: 1 }, fillcolor: COLOR.baja },
+    }], l, CONFIG);
   }, altura);
 }
 
 /**
- * Mapa de calor divergente (o secuencial para conteos).
- * @param {{x: string[], y: string[], z: (number|null)[][]}} datos
+ * Mapa de calor divergente.
+ * `centro` a `null` produce una escala secuencial.
  */
 export function mapaCalor(datos, {
-  titulo, altura = 620, centro = 0, sufijo = '%', decimales = 2,
-  ejeX = '', ejeY = '', etiquetaColor = '', mostrarEscala = true,
+  titulo, altura = 420, centro = 0, sufijo = '%', decimales = 2,
+  etiquetas = true, escalaVisible = true, ejeY = '',
 } = {}) {
   return lienzo((Plotly, nodo) => {
-    const tema = paleta();
+    const l = base(titulo, ejeY, altura);
+    l.hovermode = 'closest';
+    l.xaxis.side = 'top';
+    // Con las categorias del eje X arriba, el eje Y se lee de arriba abajo:
+    // la primera fila del array queda en la parte superior.
+    l.yaxis.autorange = 'reversed';
+    l.yaxis.gridcolor = 'rgba(0,0,0,0)';
     const escala = centro === null
-      ? [[0, tema.superficie2], [1, tema.acento]]
-      : [[0, COLORES.rojo], [0.5, tema.superficie2], [1, COLORES.verde]];
-    const disposicion = disposicionBase(titulo, ejeY, altura);
-    disposicion.xaxis.title = { text: ejeX, font: { color: tema.tintaSuave } };
-    disposicion.hovermode = 'closest';
-    const textos = datos.z.map((fila) => fila.map(
-      (valor) => (Number.isFinite(valor) ? `${valor.toFixed(decimales)}${sufijo}` : ''),
-    ));
+      ? [[0, '#131722'], [1, COLOR.acento]]
+      : [[0, COLOR.baja], [0.5, '#1b1f2b'], [1, COLOR.sube]];
     Plotly.newPlot(nodo, [{
       type: 'heatmap',
       x: datos.x,
       y: datos.y,
       z: datos.z,
-      text: textos,
-      texttemplate: '%{text}',
-      textfont: { size: 10 },
+      text: etiquetas ? datos.z.map((f) => f.map(
+        (v) => (Number.isFinite(v) ? v.toFixed(decimales) : ''),
+      )) : undefined,
+      texttemplate: etiquetas ? '%{text}' : undefined,
+      textfont: { size: 9, family: FUENTE },
       colorscale: escala,
       zmid: centro === null ? undefined : centro,
-      showscale: mostrarEscala,
-      colorbar: { title: { text: etiquetaColor, side: 'right' }, thickness: 12 },
+      showscale: escalaVisible,
+      colorbar: { thickness: 8, outlinewidth: 0, tickfont: { size: 9, color: COLOR.tenue } },
+      xgap: 1,
+      ygap: 1,
       hoverongaps: false,
-      hovertemplate: `%{x}<br>%{y}<br>%{z:.${decimales}f}${sufijo}<extra></extra>`,
-    }], disposicion, CONFIGURACION);
+      hovertemplate: `%{y} · %{x}  %{z:.${decimales}f}${sufijo}<extra></extra>`,
+    }], l, CONFIG);
   }, altura);
-}
-
-/** Redibuja todos los graficos visibles tras un cambio de tema. */
-export function repintar() {
-  if (!window.Plotly) return;
-  for (const nodo of document.querySelectorAll('.grafico')) {
-    if (!nodo.data) continue;
-    const tema = paleta();
-    window.Plotly.relayout(nodo, {
-      paper_bgcolor: tema.superficie,
-      plot_bgcolor: tema.superficie,
-      'title.font.color': tema.tinta,
-      'font.color': tema.tintaSuave,
-      'xaxis.linecolor': tema.borde,
-      'xaxis.tickfont.color': tema.tintaSuave,
-      'yaxis.gridcolor': tema.rejilla,
-      'yaxis.zerolinecolor': tema.borde,
-      'yaxis.tickfont.color': tema.tintaSuave,
-      'hoverlabel.bgcolor': tema.superficie2,
-      'hoverlabel.font.color': tema.tinta,
-      'hoverlabel.bordercolor': tema.borde,
-    });
-  }
 }
