@@ -69,13 +69,20 @@ def _vaciar(destino: Path) -> None:
             pass
 
 
+# Nada de esto debe llegar al sitio publicado.
+_EXCLUIDOS = ("tests", "__tests__", "node_modules", "__pycache__")
+
+
 def _copiar_shell(destino: Path) -> None:
-    """Copia el HTML, el CSS y los modulos JavaScript a ``dist/``."""
+    """Copia el HTML, el CSS y los modulos JavaScript a ``dist/``.
+
+    Las pruebas se quedan fuera: solo se publica lo que sirve al navegador.
+    """
 
     for origen in sorted(RUTA_WEB.rglob("*")):
-        if origen.is_dir() or "__tests__" in origen.parts or origen.name.endswith(".test.mjs"):
-            continue
         relativo = origen.relative_to(RUTA_WEB)
+        if origen.is_dir() or any(parte in _EXCLUIDOS for parte in relativo.parts):
+            continue
         final = destino / relativo
         final.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(origen, final)

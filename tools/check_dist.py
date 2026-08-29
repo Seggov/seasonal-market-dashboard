@@ -67,6 +67,17 @@ def comprobar_estructura(dist: Path, informe: Informe) -> None:
     for relativo in ARCHIVOS_OBLIGATORIOS:
         if not (dist / relativo).is_file():
             informe.fallo(f"Falta el archivo obligatorio: {relativo}")
+    # Las pruebas y las dependencias de desarrollo no se publican.
+    for prohibido in ("tests", "node_modules", "__pycache__"):
+        if (dist / prohibido).exists():
+            informe.fallo(f"El artefacto no debe contener {prohibido}/.")
+    sobrantes = sorted(
+        ruta.relative_to(dist).as_posix()
+        for ruta in dist.rglob("*.test.js")
+        if ruta.is_file()
+    )
+    if sobrantes:
+        informe.fallo(f"Archivos de prueba publicados: {', '.join(sobrantes)}")
 
 
 def comprobar_presupuestos(dist: Path, informe: Informe) -> dict[str, float]:
