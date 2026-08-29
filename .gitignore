@@ -7,3 +7,7 @@ __pycache__/
 cache/*.parquet
 cache/*.json
 *.log
+
+# Artefacto generado por tools/build_web.py; lo produce GitHub Actions.
+dist/
+node_modules/
