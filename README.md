@@ -193,7 +193,7 @@ analisis sea la que esta bajo prueba.
 | `web/assets/app.css` | Paleta oscura y tipografia monoespaciada; responsive. |
 | `web/assets/app.js` | Arranque, enrutado por hash y cabecera del instrumento. |
 | `web/assets/vistas.js` | Una funcion por vista; solo presentacion. |
-| `web/assets/graficos.js` | Envoltorio de Plotly 2.35.2 vendorizado, sin CDN. |
+| `web/assets/graficos.js` | Tarjetas, tema de Plotly 2.35.2 vendorizado e interacciones. |
 | `web/assets/ui.js` | Formato numerico y calendario del mercado. |
 | `.github/workflows/pages.yml` | Construye, verifica, valida y despliega en GitHub Pages. |
 
