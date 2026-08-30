@@ -71,13 +71,29 @@ de la URL (`#/XAUUSD/matriz`), asi que cualquier vista es enlazable.
 
 ## Mas capturas
 
-### Retornos anuales y mensuales
+### Precio y metricas generales
 
-![Retornos anuales y mensuales](docs/images/annual-monthly-returns.png)
+![Grafico de velas](docs/images/resumen-precio.png)
 
-### Curvas historicas por mes
+### Retorno por ano
 
-![Curvas historicas mensuales](docs/images/monthly-seasonality.png)
+![Retorno por ano](docs/images/retorno-anual.png)
+
+### Retorno por ano y mes
+
+![Pivote de retorno por ano y mes](docs/images/pivote-ano-mes.png)
+
+### Estacionalidad mensual
+
+![Retorno medio por mes](docs/images/estacionalidad-mensual.png)
+
+### Estacionalidad horaria
+
+![Retorno medio por hora](docs/images/estacionalidad-horaria.png)
+
+### Mejores y peores dias
+
+![Ranking de eventos extremos](docs/images/eventos-extremos.png)
 
 ## Datos incluidos
 
