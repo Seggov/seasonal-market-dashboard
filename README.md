@@ -211,13 +211,13 @@ seasonal-market-dashboard/
 |   `-- cache.py
 |-- web/                      aplicacion estatica (fuente)
 |   |-- index.html
-|   |-- assets/
-|   |   |-- app.css
-|   |   |-- app.js
-|   |   |-- graficos.js
-|   |   |-- ui.js
-|   |   |-- vistas.js
-|   |   `-- vendor/           plotly-2.35.2.min.js
+|   `-- assets/
+|       |-- app.css
+|       |-- app.js
+|       |-- graficos.js
+|       |-- ui.js
+|       |-- vistas.js
+|       `-- vendor/           plotly-2.35.2.min.js
 |-- tools/                    build_web, check_dist, serve
 |-- tests/                    pruebas de Python
 |-- docs/                     PARIDAD.md, CONTRATO_JSON.md, imagenes
