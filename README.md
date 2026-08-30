@@ -583,3 +583,11 @@ expongan como control.
   predicciones.
 - No hay actualizacion automatica de los datos ni exportacion desde la interfaz.
 - Los resultados no constituyen asesoramiento financiero.
+
+## Documentacion de detalle
+
+- [`docs/PARIDAD.md`](docs/PARIDAD.md): que calcula cada vista y las doce
+  ambiguedades del codigo original que se conservan a proposito.
+- [`docs/CONTRATO_JSON.md`](docs/CONTRATO_JSON.md): esquema de `manifest.json` y
+  `report.json`, forma de cada carga y presupuestos.
+- [`data/FUENTES_DATOS.txt`](data/FUENTES_DATOS.txt): procedencia de cada CSV.
