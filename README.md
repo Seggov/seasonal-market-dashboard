@@ -339,10 +339,13 @@ capital, volatilidad ni tamano de muestra.
 Modos de sesion:
 
 - **Declarada:** conserva las observaciones publicadas para la sesion indicada.
-  No inventa un calendario bursatil.
-- **Observada:** permite seleccionar dias y horas presentes en el archivo.
+  No inventa un calendario bursatil. Es la que se publica.
+- **Observada:** filtra por los dias y horas presentes en el archivo.
 - **Personalizada:** aplica un intervalo `[inicio, fin)` y admite sesiones que
   cruzan medianoche.
+
+Solo la declarada llega al sitio. Las otras dos existen en `src/vistas.py`
+porque definen la semantica de la primera y estan cubiertas por pruebas.
 
 `BTCUSDT` usa sesion `24/7`, por lo que conserva toda la serie. La rejilla
 esperada puede calcularse con precision, pero el snapshot contiene huecos y no
