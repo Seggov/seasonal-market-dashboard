@@ -85,6 +85,11 @@ Al pasar el cursor por un grafico aparecen guias punteadas y el valor exacto.
 En los mapas de calor la celda apuntada se marca con un contorno, porque en una
 rejilla de mas de cien celdas no basta con el tooltip.
 
+Los decimales de cada mapa se eligen segun la magnitud de sus datos: un retorno
+horario es de centesimas y se muestra como `+0.029%`, mientras que uno mensual
+aparece como `+3.21%`. Si la celda no da para el numero completo se recorta la
+unidad y, si tampoco cabe, queda solo el color.
+
 ## Mas capturas
 
 ### Precio y metricas generales
