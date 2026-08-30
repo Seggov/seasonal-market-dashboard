@@ -447,8 +447,16 @@ python tools/serve.py --raiz --abrir                # sirve en / y abre el naveg
 ```
 
 La generacion completa tarda **menos de dos minutos** y produce un artefacto de
-**5,7 MB**, del que 4,35 MB son la biblioteca de graficos: los ocho informes
-suman 1,3 MB.
+**5,7 MB** en 18 archivos, del que 4,35 MB son la biblioteca de graficos: los
+ocho informes suman 1,3 MB y ninguno pasa de 210 KB.
+
+| Presupuesto | Limite | Medido |
+|---|---|---|
+| Tamano del artefacto | 1 GB en GitHub Pages | 5,7 MB |
+| Carga inicial | 6 MB | 4,4 MB |
+| Tiempo de generacion | 10 min en GitHub Pages | 99 s |
+
+`tools/check_dist.py` falla la construccion si alguno se supera.
 
 ## Pruebas y CI
 
