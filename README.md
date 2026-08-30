@@ -481,8 +481,10 @@ JSON trae. `tools/check_dist.py` comprueba ademas que cada informe publicado
 lleve las nueve vistas.
 
 GitHub Actions ejecuta todo lo anterior en cada push y pull request a `main`.
-La verificacion visual de las nueve vistas en escritorio y movil se hace a mano
-antes de publicar.
+
+La verificacion visual se hace a mano antes de publicar: las nueve vistas de los
+ocho instrumentos -- setenta y dos combinaciones -- en escritorio y a 375 px de
+ancho, comprobando que ninguna deja el documento con desplazamiento horizontal.
 
 ## Como agregar un activo
 
