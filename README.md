@@ -11,7 +11,9 @@ ejecucion**.
 
 El reparto es estricto: **Python analiza y exporta, el navegador dibuja**. La
 pagina no recalcula nada ni ofrece controles de analisis; lee un JSON con los
-resultados ya calculados y los representa.
+resultados ya calculados y los representa como graficos.
+
+Analizar, exportar, visualizar. Nada mas.
 
 > El proyecto es una herramienta de exploracion estadistica. No genera senales,
 > predicciones ni recomendaciones de inversion.
