@@ -69,6 +69,18 @@ Nueve vistas, todas graficas:
 El unico control es la navegacion: instrumento y vista. Ambos viajan en el hash
 de la URL (`#/XAUUSD/matriz`), asi que cualquier vista es enlazable.
 
+## Interfaz
+
+La interfaz imita un terminal de mercado: fondo oscuro, tipografia
+monoespaciada y cifras alineadas por columnas. No hay tema claro, ni emojis, ni
+paneles plegables.
+
+- Una barra superior con los ocho instrumentos y, debajo, las nueve vistas.
+- Cabecera con simbolo, mercado, temporalidad, zona horaria, rango y numero de
+  observaciones.
+- Cada grafico vive en su propia tarjeta, con titulo y unidad en la cabecera.
+- Verde para retorno positivo y rojo para negativo, en toda la aplicacion.
+
 ## Mas capturas
 
 ### Precio y metricas generales
