@@ -63,8 +63,11 @@ Nueve vistas, todas graficas:
 5. **Dia de la semana:** retorno medio por dia y las siete curvas intradia.
 6. **Dia del mes:** comportamiento por dia del mes y mapa de calor.
 7. **Horario:** retorno medio por hora y curvas por dia de la semana.
-8. **Matriz dia-hora:** mapa de calor de retorno medio.
-9. **Extremos:** los diez mejores y peores dias.
+8. **Matriz dia-hora:** mapa de calor de retorno medio con el valor en cada celda.
+9. **Extremos:** ranking de los diez mejores y los diez peores dias.
+
+Las vistas horaria y de matriz solo aparecen si el instrumento tiene datos
+intradia. Con los ocho CSV actuales todos los tienen.
 
 El unico control es la navegacion: instrumento y vista. Ambos viajan en el hash
 de la URL (`#/XAUUSD/matriz`), asi que cualquier vista es enlazable.
