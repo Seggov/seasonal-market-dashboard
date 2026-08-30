@@ -18,14 +18,16 @@ resultados ya calculados y los representa.
 
 ## Vista principal: matriz dia-hora
 
-La matriz cruza el dia de la semana con la hora local del mercado y muestra el
-retorno medio de cada celda. Las celdas con menos de cinco observaciones quedan
-vacias.
+La matriz cruza el dia de la semana con la hora local del mercado. Cada celda
+muestra su retorno medio con signo y unidad, y el color indica de un vistazo el
+sesgo. Las celdas con menos de cinco observaciones quedan vacias.
 
-![Matriz de retornos por dia y hora](docs/images/day-hour-matrix.png)
+![Matriz de retornos por dia y hora](docs/images/matriz-dia-hora.png)
 
-Las capturas corresponden a la version Streamlit original, cuyo comportamiento
-la version estatica reproduce; la disposicion visual cambia, los numeros no.
+El ejemplo es petroleo WTI. Se ve que el hueco del sabado no existe y que el
+domingo solo abre por la tarde, porque la sesion no se rellena ni se aproxima:
+si el proveedor no publico una vela, la celda queda vacia.
+
 Los resultados son descriptivos y pueden incluir periodos parciales, como el mes
 o ano en curso.
 
