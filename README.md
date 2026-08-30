@@ -572,8 +572,8 @@ expongan como control.
 - No hay pruebas de navegador end-to-end automatizadas.
 - Las coberturas historicas y los tamanos de muestra difieren entre activos.
 - No se implementan calendarios bursatiles, festivos ni cierres anticipados.
-- Los periodos incompletos se marcan, pero siguen participando en promedios y
-  visualizaciones.
+- Los periodos incompletos siguen participando en promedios y visualizaciones.
+- Los graficos no tienen zoom ni exportacion: son de lectura.
 - El analisis es descriptivo: no calcula intervalos de confianza, significancia
   estadistica ni estabilidad fuera de muestra.
 - No hay adjusted close, dividendos, splits, spread bid-ask, comisiones ni
