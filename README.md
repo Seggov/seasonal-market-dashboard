@@ -366,6 +366,7 @@ reemplazo atomico, e invalida cualquier pareja incompleta o corrupta.
 | Area | Tecnologia |
 |---|---|
 | Interfaz | HTML semantico, CSS responsive, JavaScript vanilla (ES Modules) |
+| Tipografia | La monoespaciada del sistema; no se descarga ninguna fuente |
 | Calculo | Integramente en construccion: Python, Pandas, NumPy |
 | Visualizacion | Plotly.js 2.35.2 vendorizado (sin CDN) |
 | Contrato de datos | JSON estricto versionado, con las vistas ya calculadas |
