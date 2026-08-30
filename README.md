@@ -81,6 +81,10 @@ paneles plegables.
 - Cada grafico vive en su propia tarjeta, con titulo y unidad en la cabecera.
 - Verde para retorno positivo y rojo para negativo, en toda la aplicacion.
 
+Al pasar el cursor por un grafico aparecen guias punteadas y el valor exacto.
+En los mapas de calor la celda apuntada se marca con un contorno, porque en una
+rejilla de mas de cien celdas no basta con el tooltip.
+
 ## Mas capturas
 
 ### Precio y metricas generales
