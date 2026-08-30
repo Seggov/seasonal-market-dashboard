@@ -247,10 +247,13 @@ seasonal-market-dashboard/
 A partir de aqui **no interviene Python**. En el navegador:
 
 9. `app.js` lee `manifest.json` y pinta las pestanas de instrumento.
-10. Al elegir uno se descarga su unico `report.json` y se dibuja la vista.
+10. Al elegir uno se descarga su unico `report.json`.
+11. `vistas.js` toma la carga de la vista pedida y `graficos.js` la dibuja.
 
 No hay llamadas de red a servicios de mercado en ningun punto del flujo, ni
-almacenamiento en el navegador.
+almacenamiento en el navegador. Un informe pesa unos 200 KB y se guarda en
+memoria mientras dure la visita, asi que volver a un instrumento ya abierto no
+descarga nada.
 
 ### Actualizacion de los datos
 
