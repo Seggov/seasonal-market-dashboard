@@ -495,10 +495,12 @@ ancho, comprobando que ninguna deja el documento con desplazamiento horizontal.
 4. Documenta proveedor, cobertura y transformaciones en
    `data/FUENTES_DATOS.txt`.
 5. Ejecuta la suite de pruebas.
+6. Reconstruye con `python tools/build_web.py` y valida con `check_dist.py`.
 
-El cargador descubre simbolos dinamicamente. La prueba de regresion del
-catalogo actual fija los ocho simbolos versionados, por lo que debe actualizarse
-si se incorpora un noveno activo al snapshot oficial.
+El cargador descubre simbolos dinamicamente: la pestana nueva aparece sola en la
+barra superior, sin tocar el codigo del frontend. La prueba de regresion del
+catalogo fija los ocho simbolos versionados, asi que debe actualizarse si se
+incorpora un noveno al snapshot oficial.
 
 ## Procedencia de precios y volumen
 
