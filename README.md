@@ -46,8 +46,9 @@ notebook aislado y construir una aplicacion donde fuera posible:
 - hacer visible la calidad de los datos antes de analizarlos;
 - respetar UTC, zonas horarias IANA, DST y sesiones de mercado;
 - evitar rellenar huecos o fabricar velas que no existen en la fuente;
-- separar configuracion, validacion, estadistica, cache e interfaz para poder
-  probar cada responsabilidad de forma independiente.
+- separar configuracion, validacion, estadistica y presentacion para poder
+  probar cada responsabilidad de forma independiente;
+- publicar el resultado sin servidor, para que baste un enlace.
 
 El objetivo no es demostrar que un patron sea rentable. El dashboard ayuda a
 formular preguntas, comparar periodos y detectar comportamientos que despues
