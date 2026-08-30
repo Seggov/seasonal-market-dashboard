@@ -312,9 +312,13 @@ El nucleo calcula:
 - porcentaje de periodos positivos, negativos y neutros;
 - agregacion por hora, dia, semana ISO, mes y ano;
 - estacionalidad por mes, semana, dia de semana, dia del mes y hora;
-- matriz dia-hora con cinco metricas seleccionables;
+- matriz dia-hora con cinco metricas posibles;
 - filtro opcional de outliers mediante IQR;
 - eventos extremos por ranking o umbral absoluto.
+
+El sitio publica una sola configuracion de todo lo anterior: retorno medio en la
+matriz, sin filtro IQR y ranking de diez. El resto sigue implementado y probado
+en `src/`, disponible para quien regenere el JSON con otros valores.
 
 Los promedios mostrados son medias aritmeticas. No se ponderan por volumen,
 capital, volatilidad ni tamano de muestra.
