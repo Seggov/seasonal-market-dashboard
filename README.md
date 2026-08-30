@@ -557,6 +557,8 @@ conserva. Lo que cambia es el alcance de la interfaz:
 | Tema claro y oscuro | Solo oscuro | Identidad de terminal de mercado. |
 | Boton «Actualizar datos y cache» | Ninguna accion | No hay nada que reprocesar en vivo. |
 | Estado en `st.session_state` | Estado en la URL (`#/SIMBOLO/vista`) | Cualquier vista es enlazable. |
+| Panel lateral con la seleccion | Pestanas en la barra superior | Deja todo el ancho a los graficos. |
+| Emojis en titulos y botones | Ninguno | Identidad sobria de terminal. |
 
 Los modos de sesion y los filtros siguen implementados y probados en
 `src/vistas.py`: definen la semantica de lo que se publica, aunque no se
