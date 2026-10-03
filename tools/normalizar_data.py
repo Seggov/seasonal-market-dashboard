@@ -55,7 +55,9 @@ def normalizar_archivo(origen_rel: str, destino_nombre: str, simbolo: str) -> in
     # Convertir time a ISO 8601 UTC
     dt_series = pd.to_datetime(df["time"], unit="s", utc=True)
     df["timestamp_utc"] = dt_series.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-    df["volume"] = 0
+    # TradingView no aporta volumen en este conjunto. Dejarlo vacio distingue
+    # "no disponible" de un volumen observado igual a cero.
+    df["volume"] = pd.NA
 
     # Seleccionar y ordenar columnas requeridas
     salida = df[["timestamp_utc", "open", "high", "low", "close", "volume"]].copy()
