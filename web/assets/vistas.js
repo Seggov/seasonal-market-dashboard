@@ -54,14 +54,21 @@ function curvas(lista, etiquetas, desplazamiento) {
 
 /* ------------------------------------------------------------------ vistas */
 
-function resumen({ vistas }) {
+function resumen({ vistas, informe }) {
   const { metricas, velas: ohlc } = vistas.resumen;
+  const unidad = informe.unidadMetrica ?? '%';
+  const formatoRetorno = (valor) => {
+    if (valor === null || valor === undefined || !Number.isFinite(Number(valor))) return '—';
+    return unidad === '%'
+      ? porcentaje(valor)
+      : `${Number(valor) > 0 ? '+' : ''}${numero(valor, 2, ` ${unidad}`)}`;
+  };
   const serie = { x: ohlc.lt.map(ejeTemporal), o: ohlc.o, h: ohlc.h, l: ohlc.l, c: ohlc.c };
   return bloque([
     kpis([
       ['Último cierre', numero(metricas.ultimo_cierre, 2)],
-      ['Mes', porcentaje(metricas.retorno_ultimo_mes), metricas.retorno_ultimo_mes],
-      ['Año', porcentaje(metricas.retorno_ultimo_ano), metricas.retorno_ultimo_ano],
+      ['Mes', formatoRetorno(metricas.retorno_ultimo_mes), metricas.retorno_ultimo_mes],
+      ['Año', formatoRetorno(metricas.retorno_ultimo_ano), metricas.retorno_ultimo_ano],
       ['Velas +', numero(metricas.positivo_pct, 1, '%')],
       ['Velas −', numero(metricas.negativo_pct, 1, '%')],
       ['Observaciones', numero(metricas.velas, 0)],

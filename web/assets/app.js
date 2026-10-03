@@ -10,6 +10,7 @@
  */
 
 import { RENDER, VISTAS } from './vistas.js';
+import { establecerUnidadMetrica } from './graficos.js';
 import { cargando, elemento, error, isoCorta, numero } from './ui.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -107,6 +108,7 @@ async function render() {
     return;
   }
   estado.informe = informe;
+  establecerUnidadMetrica(informe.unidadMetrica, informe.nombreMetrica);
   pintarMeta();
   const dibujar = RENDER[estado.vista];
   const activo = estado.manifiesto.assets.find((a) => a.symbol === estado.simbolo);

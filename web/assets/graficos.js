@@ -23,6 +23,13 @@ export const COLOR = {
 };
 
 const CONFIG = { displayModeBar: false, responsive: true, scrollZoom: false, locale: 'es' };
+let unidadMetrica = '%';
+let nombreMetrica = 'Retorno';
+
+export function establecerUnidadMetrica(unidad, nombre = 'Retorno') {
+  unidadMetrica = unidad || '%';
+  nombreMetrica = nombre || 'Retorno';
+}
 
 const FUENTE = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
@@ -190,10 +197,11 @@ function resaltarCelda(Plotly, nodo) {
  * Tarjeta con cabecera y lienzo.
  */
 function tarjeta(dibujar, altura, titulo, unidad) {
+  const tituloVisible = titulo?.replaceAll('Retorno', nombreMetrica);
   const lienzo = elemento('div', { clase: 'chart', style: `min-height:${altura}px` });
   const nodo = elemento('figure', { clase: 'card' }, [
-    titulo ? elemento('figcaption', { clase: 'card__head' }, [
-      elemento('span', { clase: 'card__title', texto: titulo }),
+    tituloVisible ? elemento('figcaption', { clase: 'card__head' }, [
+      elemento('span', { clase: 'card__title', texto: tituloVisible }),
       unidad ? elemento('span', { clase: 'card__unit', texto: unidad }) : null,
     ]) : null,
     lienzo,
@@ -210,7 +218,7 @@ function tarjeta(dibujar, altura, titulo, unidad) {
 }
 
 /** Barras con color por signo. */
-export function barras(x, y, { titulo, unidad = '%', altura = 280, etiquetas = true } = {}) {
+export function barras(x, y, { titulo, unidad = unidadMetrica, altura = 280, etiquetas = true } = {}) {
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
     l.bargap = 0.3;
@@ -227,13 +235,13 @@ export function barras(x, y, { titulo, unidad = '%', altura = 280, etiquetas = t
       textposition: 'outside',
       textfont: { size: 9, color: COLOR.tenue },
       cliponaxis: false,
-      hovertemplate: '%{y:.2f}%<extra></extra>',
+      hovertemplate: `%{y:.2f}${unidad}<extra></extra>`,
     }], l, CONFIG);
   }, altura, titulo, unidad);
 }
 
 /** Barras horizontales, para rankings. */
-export function barrasH(y, x, { titulo, unidad = '%', altura = 380 } = {}) {
+export function barrasH(y, x, { titulo, unidad = unidadMetrica, altura = 380 } = {}) {
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
     l.margin.l = 116;
@@ -257,18 +265,18 @@ export function barrasH(y, x, { titulo, unidad = '%', altura = 380 } = {}) {
       x,
       y,
       marker: { color: x.map((v) => (Number(v) >= 0 ? COLOR.sube : COLOR.baja)) },
-      text: x.map((v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '')),
+      text: x.map((v) => (Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}${unidad}` : '')),
       textposition: 'outside',
       textfont: { size: 10, color: COLOR.texto },
       cliponaxis: false,
-      hovertemplate: '<b>%{y}</b>   %{x:.2f}%<extra></extra>',
+      hovertemplate: `<b>%{y}</b>   %{x:.2f}${unidad}<extra></extra>`,
     }], l, CONFIG);
   }, altura, titulo, unidad);
 }
 
 /** Linea con area y referencia opcional. */
 export function linea(x, y, {
-  titulo, unidad = '%', altura = 210, referencia = null, compacta = false,
+  titulo, unidad = unidadMetrica, altura = 210, referencia = null, compacta = false,
 } = {}) {
   return tarjeta((Plotly, nodo) => {
     const l = base('', altura);
@@ -288,7 +296,7 @@ export function linea(x, y, {
       connectgaps: false,
       fill: 'tozeroy',
       fillcolor: 'rgba(41,98,255,.10)',
-      hovertemplate: '%{y:.2f}%<extra></extra>',
+      hovertemplate: `%{y:.2f}${unidad}<extra></extra>`,
     }], l, CONFIG);
   }, altura, titulo, unidad);
 }
@@ -326,7 +334,7 @@ export function velas(datos, { titulo = 'Precio', unidad = '', altura = 400 } = 
  * `centro` a `null` produce una escala secuencial.
  */
 export function mapaCalor(datos, {
-  titulo, unidad = '%', altura = 420, centro = 0, decimales = 2,
+  titulo, unidad = unidadMetrica, altura = 420, centro = 0, decimales = 2,
   etiquetas = true, escalaVisible = true, tamanoTexto = 10,
 } = {}) {
   return tarjeta((Plotly, nodo) => {
