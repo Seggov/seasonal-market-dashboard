@@ -211,10 +211,6 @@ def leer_y_validar_datos(
         no_finito = numero.notna() & ~np.isfinite(numero)
         _agregar_motivo(motivos, invalido | no_finito, f"{columna} no es numerico finito")
 
-    for columna in _COLUMNAS_OHLC:
-        _agregar_motivo(
-            motivos, convertidos[columna].lt(0), f"{columna} no puede ser negativo"
-        )
     _agregar_motivo(
         motivos, convertidos["volume"].lt(0), "volume no puede ser negativo"
     )
@@ -293,9 +289,13 @@ def leer_y_validar_datos(
     # publicado o precalculado por la fuente.
     retornos = pd.Series(np.nan, index=validos.index, dtype=float)
     apertura_valida = validos["open"]
-    apertura_no_cero = apertura_valida.abs().gt(TOLERANCIA_NEUTRA)
-    retornos.loc[apertura_no_cero] = (
-        validos.loc[apertura_no_cero, "close"] / apertura_valida.loc[apertura_no_cero] - 1
+    precios_positivos = apertura_valida.gt(TOLERANCIA_NEUTRA) & validos[
+        "close"
+    ].gt(TOLERANCIA_NEUTRA)
+    retornos.loc[precios_positivos] = (
+        validos.loc[precios_positivos, "close"]
+        / apertura_valida.loc[precios_positivos]
+        - 1
     ) * 100
     validos["return_percent"] = retornos
     positivas = int(retornos.gt(TOLERANCIA_NEUTRA).sum())

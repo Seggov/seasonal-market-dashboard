@@ -91,8 +91,9 @@ def preparar_datos(
     trabajo = trabajo.dropna(subset=[columna]).sort_values(columna, kind="stable")
     apertura = pd.to_numeric(trabajo["open"], errors="coerce")
     cierre = pd.to_numeric(trabajo["close"], errors="coerce")
+    precios_positivos = apertura.gt(TOLERANCIA) & cierre.gt(TOLERANCIA)
     trabajo["return_percent"] = np.where(
-        apertura.abs() > TOLERANCIA, (cierre / apertura - 1.0) * 100.0, np.nan
+        precios_positivos, (cierre / apertura - 1.0) * 100.0, np.nan
     )
     return trabajo.reset_index(drop=True), columna
 
@@ -144,8 +145,9 @@ def agregar(
         )
         apertura = pd.to_numeric(salida["open"], errors="coerce")
         cierre = pd.to_numeric(salida["close"], errors="coerce")
+        precios_positivos = apertura.gt(TOLERANCIA) & cierre.gt(TOLERANCIA)
         salida["return_percent"] = np.where(
-            apertura.abs() > TOLERANCIA, (cierre / apertura - 1.0) * 100.0, np.nan
+            precios_positivos, (cierre / apertura - 1.0) * 100.0, np.nan
         )
         return salida[list(COLUMNAS_AGREGADO)]
     return agregar_periodos(
@@ -190,8 +192,11 @@ def curvas_mensuales(diarios: pd.DataFrame) -> pd.DataFrame:
     apertura_mes = trabajo.groupby(["ano", "numero_mes"], sort=False)[
         "open"
     ].transform("first")
+    precios_positivos = apertura_mes.gt(TOLERANCIA) & trabajo["close"].gt(
+        TOLERANCIA
+    )
     trabajo["retorno_acumulado"] = np.where(
-        apertura_mes.abs() > TOLERANCIA,
+        precios_positivos,
         (trabajo["close"] / apertura_mes - 1.0) * 100.0,
         np.nan,
     )
@@ -221,8 +226,11 @@ def curvas_intradia_por_dia(
     trabajo["numero_dia"] = fechas.dt.dayofweek
     trabajo["hora"] = fechas.dt.hour
     apertura_dia = trabajo.groupby("fecha_dia", sort=False)["open"].transform("first")
+    precios_positivos = apertura_dia.gt(TOLERANCIA) & trabajo["close"].gt(
+        TOLERANCIA
+    )
     trabajo["retorno_acumulado"] = np.where(
-        apertura_dia.abs() > TOLERANCIA,
+        precios_positivos,
         (trabajo["close"] / apertura_dia - 1.0) * 100.0,
         np.nan,
     )

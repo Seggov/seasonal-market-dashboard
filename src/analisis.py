@@ -334,8 +334,11 @@ def agregar_periodos(
         continuo=("__continuo", "all"),
     ).reset_index(drop=True)
 
+    precios_positivos = resultado["open"].gt(TOLERANCIA) & resultado[
+        "close"
+    ].gt(TOLERANCIA)
     resultado["return_percent"] = np.where(
-        resultado["open"].abs() > TOLERANCIA,
+        precios_positivos,
         (resultado["close"] / resultado["open"] - 1.0) * 100.0,
         np.nan,
     )
