@@ -96,23 +96,25 @@ def test_modo_tolerante_conserva_activos_validos(tmp_path: Path) -> None:
 
 
 def test_catalogo_real_contiene_solo_las_ocho_series_h1() -> None:
-    """Fija el alcance deliberadamente cerrado de esta aplicacion local."""
+    """Valida el catalogo de activos configurados."""
 
     activos = cargar_activos()
 
     assert set(activos) == {
         "BTCUSDT",
-        "SP500",
-        "NIKKEI225",
-        "USA500IDXUSD",
-        "JPNIDXJPY",
+        "TOTAL",
+        "SPX",
+        "NDX",
+        "IBEX35",
+        "JP225",
+        "SPCLXIGL",
+        "GC1",
+        "SI1",
+        "HG1",
         "XAUUSD",
-        "XAGUSD",
-        "WTI_LIGHTCMDUSD",
+        "CL1",
+        "NG1",
+        "ZS1",
+        "US10Y",
     }
-    assert {activo.temporalidad for activo in activos.values()} == {"1h"}
     assert {activo.tipo_timestamp for activo in activos.values()} == {"instante_utc"}
-    assert {
-        activos[simbolo].sesion
-        for simbolo in ("USA500IDXUSD", "JPNIDXJPY", "XAUUSD", "XAGUSD", "WTI_LIGHTCMDUSD")
-    } == {"Dukascopy 24/5 extendida"}

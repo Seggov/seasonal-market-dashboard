@@ -112,14 +112,16 @@ def temporalidad_a_minutos(temporalidad: str) -> int:
 
 
 def permite_analisis_horario(temporalidad: str) -> bool:
-    """Indica si la temporalidad conserva una hora real de observacion.
+    """Indica si la temporalidad permite agregar o analizar por hora.
 
-    Las velas diarias o superiores devuelven ``False``. Una fecha de sesion
-    diaria no se convierte artificialmente en medianoche para analizar horas.
+    Requiere que la temporalidad sea sub-horaria o de 1 hora exacta (debe
+    dividir 60 minutos sin residuo). Temporalidades superiores (como 4h o 1d)
+    no se pueden subdividir en horas.
     """
 
     try:
-        return temporalidad_a_minutos(temporalidad) < 24 * 60
+        minutos = temporalidad_a_minutos(temporalidad)
+        return minutos <= 60 and (60 % minutos == 0)
     except ValueError:
         return False
 

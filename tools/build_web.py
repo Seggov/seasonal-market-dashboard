@@ -33,11 +33,12 @@ RUTA_WEB = RAIZ / "web"
 RUTA_DIST = RAIZ / "dist"
 
 ETIQUETAS_CATEGORIAS = {
+    "indices": "Índices",
+    "metales": "Metales",
+    "energia": "Energía",
+    "agricolas": "Agrícolas",
     "crypto": "Criptomonedas",
-    "indice_oficial": "Índices oficiales",
-    "cfd_indice": "CFD de índices",
-    "metal_spot": "Metales spot",
-    "energia_cfd": "Energía CFD",
+    "renta_fija": "Renta fija",
 }
 
 
