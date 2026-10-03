@@ -20,6 +20,7 @@ import pandas as pd
 from .analisis import (
     TOLERANCIA,
     agregar_periodos,
+    calcular_retorno,
     dia_mes,
     dia_semana,
     estacionalidad_mes,
@@ -89,11 +90,8 @@ def preparar_datos(
     trabajo = datos.copy()
     trabajo[columna] = pd.to_datetime(trabajo[columna], errors="coerce")
     trabajo = trabajo.dropna(subset=[columna]).sort_values(columna, kind="stable")
-    apertura = pd.to_numeric(trabajo["open"], errors="coerce")
-    cierre = pd.to_numeric(trabajo["close"], errors="coerce")
-    precios_positivos = apertura.gt(TOLERANCIA) & cierre.gt(TOLERANCIA)
-    trabajo["return_percent"] = np.where(
-        precios_positivos, (cierre / apertura - 1.0) * 100.0, np.nan
+    trabajo["return_percent"] = calcular_retorno(
+        trabajo["open"], trabajo["close"], activo.formula_retorno
     )
     return trabajo.reset_index(drop=True), columna
 
@@ -115,6 +113,7 @@ def agregar(
                 periodo,
                 columna_fecha=columna_fecha,
                 temporalidad=activo.temporalidad,
+                formula_retorno=activo.formula_retorno,
             )
         trabajo = datos.sort_values(columna_fecha, kind="stable").copy()
         fechas = pd.to_datetime(trabajo[columna_fecha])
@@ -145,9 +144,8 @@ def agregar(
         )
         apertura = pd.to_numeric(salida["open"], errors="coerce")
         cierre = pd.to_numeric(salida["close"], errors="coerce")
-        precios_positivos = apertura.gt(TOLERANCIA) & cierre.gt(TOLERANCIA)
-        salida["return_percent"] = np.where(
-            precios_positivos, (cierre / apertura - 1.0) * 100.0, np.nan
+        salida["return_percent"] = calcular_retorno(
+            apertura, cierre, activo.formula_retorno
         )
         return salida[list(COLUMNAS_AGREGADO)]
     return agregar_periodos(
@@ -155,6 +153,7 @@ def agregar(
         periodo,
         columna_fecha=columna_fecha,
         temporalidad=activo.temporalidad,
+        formula_retorno=activo.formula_retorno,
     )
 
 
@@ -173,7 +172,9 @@ def datos_diarios(
     return salida[list(COLUMNAS_AGREGADO)]
 
 
-def curvas_mensuales(diarios: pd.DataFrame) -> pd.DataFrame:
+def curvas_mensuales(
+    diarios: pd.DataFrame, activo: ActivoConfig | None = None
+) -> pd.DataFrame:
     """Promedia la trayectoria acumulada diaria de cada mes historico.
 
     La columna se llama ``retorno_ponderado`` por compatibilidad historica pero
@@ -192,13 +193,10 @@ def curvas_mensuales(diarios: pd.DataFrame) -> pd.DataFrame:
     apertura_mes = trabajo.groupby(["ano", "numero_mes"], sort=False)[
         "open"
     ].transform("first")
-    precios_positivos = apertura_mes.gt(TOLERANCIA) & trabajo["close"].gt(
-        TOLERANCIA
-    )
-    trabajo["retorno_acumulado"] = np.where(
-        precios_positivos,
-        (trabajo["close"] / apertura_mes - 1.0) * 100.0,
-        np.nan,
+    trabajo["retorno_acumulado"] = calcular_retorno(
+        apertura_mes,
+        trabajo["close"],
+        activo.formula_retorno if activo is not None else "(close_final / open_inicial - 1) * 100",
     )
     return (
         trabajo.groupby(["numero_mes", "dia_mes"], observed=True)["retorno_acumulado"]
@@ -226,13 +224,8 @@ def curvas_intradia_por_dia(
     trabajo["numero_dia"] = fechas.dt.dayofweek
     trabajo["hora"] = fechas.dt.hour
     apertura_dia = trabajo.groupby("fecha_dia", sort=False)["open"].transform("first")
-    precios_positivos = apertura_dia.gt(TOLERANCIA) & trabajo["close"].gt(
-        TOLERANCIA
-    )
-    trabajo["retorno_acumulado"] = np.where(
-        precios_positivos,
-        (trabajo["close"] / apertura_dia - 1.0) * 100.0,
-        np.nan,
+    trabajo["retorno_acumulado"] = calcular_retorno(
+        apertura_dia, trabajo["close"], activo.formula_retorno
     )
     trayectoria = (
         trabajo.groupby(["numero_dia", "hora"], observed=True)["retorno_acumulado"]

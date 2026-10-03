@@ -17,6 +17,33 @@ import pandas as pd
 
 TOLERANCIA = 1e-10
 
+FORMULA_PORCENTUAL = "(close_final / open_inicial - 1) * 100"
+FORMULA_PUNTOS_BASICOS = "(close_final - open_inicial) * 100"
+FORMULA_CAMBIO_ABSOLUTO = "close_final - open_inicial"
+
+
+def calcular_retorno(
+    apertura: pd.Series | np.ndarray | float,
+    cierre: pd.Series | np.ndarray | float,
+    formula: str = FORMULA_PORCENTUAL,
+) -> pd.Series | np.ndarray | float:
+    """Calcula la variacion segun la formula declarada para el instrumento."""
+
+    apertura_num = pd.to_numeric(apertura, errors="coerce")
+    cierre_num = pd.to_numeric(cierre, errors="coerce")
+    if formula == FORMULA_PUNTOS_BASICOS:
+        return (cierre_num - apertura_num) * 100.0
+    if formula == FORMULA_CAMBIO_ABSOLUTO:
+        return cierre_num - apertura_num
+    if formula not in {FORMULA_PORCENTUAL, "(close / open - 1) * 100"}:
+        raise ValueError(f"Formula de retorno no reconocida: {formula!r}.")
+    precios_positivos = (apertura_num > TOLERANCIA) & (cierre_num > TOLERANCIA)
+    return np.where(
+        precios_positivos,
+        (cierre_num / apertura_num - 1.0) * 100.0,
+        np.nan,
+    )
+
 MESES_ES = (
     "enero",
     "febrero",
@@ -257,6 +284,7 @@ def agregar_periodos(
     columna_fecha: str | None = None,
     temporalidad: str | None = None,
     registros_esperados: int | None = None,
+    formula_retorno: str = FORMULA_PORCENTUAL,
 ) -> pd.DataFrame:
     """Agrega velas por hora, dia, semana ISO, mes o ano.
 
@@ -334,13 +362,8 @@ def agregar_periodos(
         continuo=("__continuo", "all"),
     ).reset_index(drop=True)
 
-    precios_positivos = resultado["open"].gt(TOLERANCIA) & resultado[
-        "close"
-    ].gt(TOLERANCIA)
-    resultado["return_percent"] = np.where(
-        precios_positivos,
-        (resultado["close"] / resultado["open"] - 1.0) * 100.0,
-        np.nan,
+    resultado["return_percent"] = calcular_retorno(
+        resultado["open"], resultado["close"], formula_retorno
     )
     sin_duplicados = resultado["cantidad_registros"].eq(resultado["marcas_unicas"])
     estructura_valida = sin_duplicados & resultado["continuo"]

@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .analisis import calcular_retorno
 from .configuracion import ActivoConfig
 
 
@@ -81,17 +82,16 @@ def calcular_cobertura(
 ) -> tuple[dict[str, Any], list[str]]:
     """Calcula intervalos esperados solo cuando el calendario es riguroso.
 
-    Se admiten sesiones 24/7 y 24/5. En 24/5 se eliminan sabado y domingo
-    segun la zona declarada. Para USA, Japon u otra sesion no se aproximan
-    festivos ni horarios bursatiles: se informa que la cobertura no esta
-    disponible.
+    Solo se admite cobertura 24/7. Una etiqueta 24/5 no define por si sola
+    aperturas semanales ni pausas diarias, asi que no se usa para estimar
+    intervalos sin un calendario exacto.
     """
 
     sesion = activo.sesion.strip().lower()
-    if sesion not in {"24/7", "24/5"}:
+    if sesion != "24/7":
         aviso = (
             f"Cobertura no disponible para {activo.simbolo}: la sesion "
-            f"{activo.sesion!r} requiere un calendario de mercado exacto."
+            f"{activo.sesion!r} no define un calendario de mercado exacto."
         )
         return {"disponible": False, "razon": aviso}, [aviso]
 
@@ -128,8 +128,6 @@ def calcular_cobertura(
         }, []
 
     esperados = pd.date_range(observados.min(), observados.max(), freq=intervalo)
-    if sesion == "24/5":
-        esperados = esperados[esperados.dayofweek < 5]
     faltantes = esperados.difference(observados)
     observados_esperados = len(esperados.intersection(observados))
     porcentaje = (
@@ -287,16 +285,11 @@ def leer_y_validar_datos(
 
     # El signo de una vela depende siempre de sus precios, no del porcentaje
     # publicado o precalculado por la fuente.
-    retornos = pd.Series(np.nan, index=validos.index, dtype=float)
-    apertura_valida = validos["open"]
-    precios_positivos = apertura_valida.gt(TOLERANCIA_NEUTRA) & validos[
-        "close"
-    ].gt(TOLERANCIA_NEUTRA)
-    retornos.loc[precios_positivos] = (
-        validos.loc[precios_positivos, "close"]
-        / apertura_valida.loc[precios_positivos]
-        - 1
-    ) * 100
+    retornos = pd.Series(
+        calcular_retorno(validos["open"], validos["close"], activo.formula_retorno),
+        index=validos.index,
+        dtype=float,
+    )
     validos["return_percent"] = retornos
     positivas = int(retornos.gt(TOLERANCIA_NEUTRA).sum())
     negativas = int(retornos.lt(-TOLERANCIA_NEUTRA).sum())

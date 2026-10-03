@@ -21,6 +21,14 @@ CAMPOS_OBLIGATORIOS = (
     "formula_retorno",
 )
 
+FORMULAS_RETORNO = {
+    "(close_final / open_inicial - 1) * 100",
+    "(close_final - open_inicial) * 100",
+    "close_final - open_inicial",
+    # Compatibilidad con configuraciones previas.
+    "(close / open - 1) * 100",
+}
+
 
 class ErrorConfiguracion(ValueError):
     """Indica que ``activos.json`` no se puede usar con seguridad."""
@@ -58,6 +66,14 @@ class ActivoConfig:
                 f"{self.zona_horaria!r}."
             ) from exc
         object.__setattr__(self, "zona", zona)
+
+    @property
+    def unidad_retorno(self) -> str:
+        if self.formula_retorno == "(close_final - open_inicial) * 100":
+            return "bps"
+        if self.formula_retorno == "close_final - open_inicial":
+            return "$/bbl" if self.simbolo == "CL1" else "unidades"
+        return "%"
 
 
 def _texto_obligatorio(datos: dict[str, Any], campo: str, simbolo: str) -> str:
@@ -151,6 +167,10 @@ def cargar_activos(
                 raise ErrorConfiguracion(
                     f"Activo {simbolo!r}: tipo_timestamp debe ser 'instante_utc' "
                     "o 'fecha_sesion'."
+                )
+            if valores["formula_retorno"] not in FORMULAS_RETORNO:
+                raise ErrorConfiguracion(
+                    f"Activo {simbolo!r}: formula_retorno no esta soportada."
                 )
 
             ruta_declarada = Path(valores["archivo"])

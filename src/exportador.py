@@ -212,7 +212,7 @@ def vista_mensual(
         return {"estacional": [], "curvas": []}
     estacional = estacionalidad_mes(mensual, columna_fecha="inicio")
     diarios = vistas.datos_diarios(datos, activo, columna_fecha)
-    curvas = vistas.curvas_mensuales(diarios)
+    curvas = vistas.curvas_mensuales(diarios, activo)
     return {
         "estacional": _estacional(estacional, ("numero_mes", "promedio", "n")),
         "curvas": _curvas_por_clave(curvas, "numero_mes", "dia_mes", "retorno_ponderado"),
@@ -362,6 +362,12 @@ def construir_informe(
         "schemaVersion": SCHEMA_VERSION,
         "processingVersion": PROCESSING_VERSION,
         "symbol": activo.simbolo,
+        "unidadMetrica": activo.unidad_retorno,
+        "nombreMetrica": (
+            "Cambio del rendimiento" if activo.unidad_retorno == "bps"
+            else "Variación del precio" if activo.unidad_retorno == "puntos"
+            else "Retorno"
+        ),
         "vistas": calcular_vistas(datos_sesion, activo, columna_fecha),
     }
 
