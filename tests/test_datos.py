@@ -165,10 +165,10 @@ def test_cobertura_24_7_detecta_intervalo_faltante(
     assert cobertura["intervalos_faltantes"] == ["2024-01-06T00:00:00"]
 
 
-def test_cobertura_24_5_excluye_fin_de_semana(
+def test_cobertura_24_5_no_se_estima_sin_calendario_exacto(
     crear_activo: Callable[..., ActivoConfig],
 ) -> None:
-    """No marca sabado ni domingo como faltantes en una sesion 24/5."""
+    """No infiere cobertura 24/5 con una rejilla que ignora pausas de mercado."""
 
     activo = crear_activo(
         sesion="24/5", temporalidad="1d", tipo_timestamp="fecha_sesion"
@@ -179,7 +179,6 @@ def test_cobertura_24_5_excluye_fin_de_semana(
 
     cobertura, advertencias = calcular_cobertura(datos, activo)
 
-    assert advertencias == []
-    assert cobertura["esperados"] == 2
-    assert cobertura["observados"] == 2
-    assert cobertura["faltantes"] == 0
+    assert cobertura["disponible"] is False
+    assert "calendario" in cobertura["razon"]
+    assert advertencias == [cobertura["razon"]]

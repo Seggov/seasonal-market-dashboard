@@ -234,7 +234,10 @@ def test_el_informe_no_publica_rutas_absolutas_ni_series() -> None:
     assert "C:\\\\" not in texto and "/home/" not in texto
     assert informe["schemaVersion"] == exportador.SCHEMA_VERSION
     # El informe es autosuficiente: identidad y vistas, nada mas.
-    assert set(informe) == {"schemaVersion", "processingVersion", "symbol", "vistas"}
+    assert set(informe) == {
+        "schemaVersion", "processingVersion", "symbol", "unidadMetrica",
+        "nombreMetrica", "vistas",
+    }
 
 
 def test_la_entrada_del_manifiesto_describe_el_activo() -> None:

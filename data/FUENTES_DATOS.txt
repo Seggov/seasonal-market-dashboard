@@ -1,79 +1,47 @@
-DATOS HISTORICOS EN VELAS DE 1 HORA
+SNAPSHOT DE DATOS FINANCIEROS
 
-Actualizado (UTC): 2026-07-26T19:01:15Z
-Zona horaria de todos los CSV: UTC
-Columnas: timestamp_utc, open, high, low, close, volume
-Solo se incluyen velas cerradas cuando la fuente permite identificarlas.
+El catalogo vigente es data/activos.json. Los conteos y rangos de abajo se
+obtienen de los CSV versionados; las marcas temporales son UTC.
 
-ARCHIVOS Y COBERTURA
-- SP500_1h.csv
-  Instrumento: S&P 500 Index (^GSPC)
-  Fuente: Yahoo Finance chart API
-  Filas: 5081
-  Desde: 2023-08-25T13:30:00Z
-  Hasta: 2026-07-24T20:00:00Z
-- Nikkei225_1h.csv
-  Instrumento: Nikkei 225 Index (^N225)
-  Fuente: Yahoo Finance chart API
-  Filas: 5090
-  Desde: 2023-07-28T00:00:00Z
-  Hasta: 2026-07-24T06:30:00Z
-- BTCUSDT_1h.csv
-  Instrumento: Bitcoin / Tether (BTCUSDT)
-  Fuente: Binance public spot API
-  Filas: 78245
-  Desde: 2017-08-17T04:00:00Z
-  Hasta: 2026-07-26T16:00:00Z
-- USA500IDXUSD_Dukascopy_1h.csv
-  Instrumento: US 500 Index CFD (USA500.IDX/USD)
-  Fuente: Dukascopy, precio bid
-  Filas: 74294
-  Desde: 2011-09-18T21:00:00Z
-  Hasta: 2026-07-24T20:00:00Z
-- JPNIDXJPY_Dukascopy_1h.csv
-  Instrumento: Japan 225 Index CFD (JPN.IDX/JPY)
-  Fuente: Dukascopy, precio bid
-  Filas: 75722
-  Desde: 2011-09-18T21:00:00Z
-  Hasta: 2026-07-24T20:00:00Z
-- XAUUSD_Dukascopy_1h.csv
-  Instrumento: Oro spot frente al dolar (XAU/USD)
-  Fuente: Dukascopy, precio bid
-  Filas: 140352
-  Desde: 2003-05-05T00:00:00Z
-  Hasta: 2026-07-24T20:00:00Z
-- XAGUSD_Dukascopy_1h.csv
-  Instrumento: Plata spot frente al dolar (XAG/USD)
-  Fuente: Dukascopy, precio bid
-  Filas: 139418
-  Desde: 2003-05-04T23:00:00Z
-  Hasta: 2026-07-24T20:00:00Z
-- WTI_LIGHTCMDUSD_Dukascopy_1h.csv
-  Instrumento: Petroleo WTI CFD (LIGHT.CMD/USD)
-  Fuente: Dukascopy, precio bid
-  Filas: 85909
-  Desde: 2011-09-23T07:00:00Z
-  Hasta: 2026-07-24T20:00:00Z
+SIMBOLO | ARCHIVO | FILAS | DESDE | HASTA | TEMPORALIDAD
+BTCUSDT | BTCUSDT_1h.csv | 78245 | 2017-08-17T04:00:00Z | 2026-07-26T16:00:00Z | 1h
+TOTAL | TOTAL_1h.csv | 41116 | 2022-01-01T00:00:00Z | 2026-09-10T03:00:00Z | 1h
+SPX | SPX_1h.csv | 41145 | 2003-01-02T14:30:00Z | 2026-09-09T19:30:00Z | 1h
+NDX | NDX_4h.csv | 13381 | 2000-01-03T14:30:00Z | 2026-09-09T17:30:00Z | 4h
+IBEX35 | IBEX35_1h.csv | 40420 | 2009-02-02T08:00:00Z | 2026-09-09T15:00:00Z | 1h
+JP225 | JP225_1h.csv | 45466 | 2019-01-01T23:00:00Z | 2026-09-10T03:00:00Z | 1h
+SPCLXIGL | SPCLXIGL_5m.csv | 40353 | 2024-07-22T13:30:00Z | 2026-08-31T20:00:00Z | 5m
+GC1 | GC1_1h.csv | 23665 | 2022-09-08T09:00:00Z | 2026-09-10T03:00:00Z | 1h
+SI1 | SI1_1h.csv | 23799 | 2022-08-31T10:00:00Z | 2026-09-10T03:00:00Z | 1h
+HG1 | HG1_1h.csv | 23630 | 2022-09-11T22:00:00Z | 2026-09-10T03:00:00Z | 1h
+XAUUSD | XAUUSD_1h.csv | 45485 | 2019-01-01T23:00:00Z | 2026-09-10T03:00:00Z | 1h
+CL1 | CL1_1h.csv | 45469 | 2019-01-01T23:00:00Z | 2026-09-10T03:00:00Z | 1h
+NG1 | NG1_1h.csv | 23639 | 2022-09-09T12:00:00Z | 2026-09-10T03:00:00Z | 1h
+ZS1 | ZS1_1h.csv | 18871 | 2022-09-12T00:00:00Z | 2026-09-10T13:00:00Z | 1h
+US10Y | US10Y_1h.csv | 42173 | 2019-01-02T06:00:00Z | 2026-09-10T03:00:00Z | 1h
 
-NOTAS
-- Yahoo Finance limita el intervalo de 1 hora a aproximadamente 730 dias.
-- Los indices solo tienen velas durante sus sesiones de mercado.
-- El volumen de los indices puede ser cero o no estar disponible.
-- BTCUSDT es Bitcoin cotizado en USDT; USDT busca mantener paridad con USD.
-- El historial de BTC comienza con la primera vela disponible en Binance.
-- USA500.IDX/USD y JPN.IDX/JPY son CFD que replican indices; no son los indices oficiales al contado.
-- XAU/USD y XAG/USD son precios spot; LIGHT.CMD/USD es el CFD de crudo ligero WTI.
-- El volumen de Dukascopy es el reportado por ese proveedor y no volumen oficial de la bolsa subyacente.
-- No se generaron velas planas para rellenar cierres, festivos ni huecos de la fuente.
-- Dukascopy contenia 41 velas WTI con high/low desviado hasta 0.002 respecto a open/close. Se ajusto solo el extremo para que cada OHLC fuera coherente.
-- Los datos proceden de servicios publicos y pueden contener huecos de origen.
+PROCEDENCIA Y SEMANTICA
 
-FUENTES
-- https://finance.yahoo.com/quote/%5EGSPC/
-- https://finance.yahoo.com/quote/%5EN225/
-- https://www.binance.com/en/trade/BTC_USDT
-- https://www.dukascopy-node.app/instrument/usa500idxusd
-- https://www.dukascopy-node.app/instrument/jpnidxjpy
-- https://www.dukascopy-node.app/instrument/xauusd
-- https://www.dukascopy-node.app/instrument/xagusd
-- https://www.dukascopy-node.app/instrument/lightcmdusd
+- BTCUSDT procede del mercado spot de Binance; el CSV conserva el volumen
+  informado por Binance.
+- TOTAL, SPX, NDX, IBEX35, JP225, SPCLXIGL, GC1, SI1, HG1, XAUUSD, CL1, NG1,
+  ZS1 y US10Y son exportaciones OHLC de TradingView. Los identificadores de
+  proveedor/instrumento usados para normalizarlas estan en tools/normalizar_data.py
+  y data/activos.json.
+- Las exportaciones OHLC de TradingView no incluyen volumen para estos catorce
+  archivos. La columna volume se deja vacia para indicar "no disponible".
+- Los CSV de este catalogo suman 546857 filas. El importador conserva OHLC
+  finito, incluso precios negativos; verifica el orden high/low, timestamps y
+  duplicados.
+- No se fabrican velas para rellenar huecos, cierres o festivos. Las fuentes
+  originales de TradingView usadas por el script se encuentran fuera del
+  repositorio; el snapshot CSV versionado es la entrada reproducible del build.
+- CL1 incluye los precios negativos observados el 20 de abril de 2020. El
+  analisis de este instrumento usa cambios absolutos en USD por barril.
+- US10Y es un rendimiento porcentual, no un precio de bono. Sus variaciones se
+  muestran en puntos basicos.
+- La cobertura de sesiones 24/5 no se estima sin un calendario exacto de
+  aperturas y pausas. Solo las series declaradas 24/7 usan cobertura sintetica.
+
+Los nombres, mercados, temporalidades, sesiones, zonas horarias y formulas de
+medicion declarados por activo se mantienen en data/activos.json.

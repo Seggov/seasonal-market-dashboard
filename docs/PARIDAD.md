@@ -3,6 +3,11 @@
 Este documento fija el comportamiento **efectivo** de la aplicación Streamlit
 (`src/interfaz.py`, commit `9d1c6d9`) que la versión estática debe reproducir.
 
+> **Vigencia de los datos.** Las tablas históricas de este documento describen
+> el snapshot de ocho activos de la migración original. El catálogo actual
+> contiene quince activos; usa `README.md` y `data/FUENTES_DATOS.txt` como
+> referencia para sus nombres, fuentes, filas y rangos.
+
 Regla rectora: **paridad antes que corrección**. Cuando el comportamiento
 observado difiere de su documentación o de lo que sería semánticamente deseable,
 la migración replica el comportamiento observado y lo registra aquí. Las
@@ -148,7 +153,7 @@ Réplica exacta de `analisis._clave_periodo`:
 > al terminar el horario de verano. Como la ordenación es lexicográfica y el
 > desplazamiento menor (p. ej. `-18000` = EST) precede al mayor (`-14400` = EDT),
 > la **segunda** ocurrencia cronológica se ordena **antes** que la primera.
-> Se conserva. Ninguno de los ocho CSV actuales contiene esa hora repetida.
+> Se conserva. Ninguno de los quince CSV actuales contiene esa hora repetida.
 > Cubierto por `tests/test_tiempo.py`.
 
 ### 3.3 Límites y completitud de un periodo
@@ -178,19 +183,15 @@ de otoño (hora repetida), semanas ISO que cruzan de año, velas que empiezan en
 
 ## 4. Ambigüedades conservadas
 
-> **A-3 · `"Dukascopy 24/5 extendida"` no equivale a `"24/5"`.**
-> Las comparaciones de sesión son de igualdad exacta sobre
-> `sesion.strip().lower()` contra `"24/7"` y `"24/5"`.
-> `"dukascopy 24/5 extendida"` no coincide con ninguna, de modo que en modo
-> `Declarada` **no se aplica ningún filtro** y se conserva la serie completa
-> (sábados y domingos incluidos, si los hubiera). Afecta a 5 de los 8 activos.
-> Lo mismo ocurre con `"NYSE regular observada"` y `"Tokyo regular observada"`.
-> Solo `BTCUSDT` (`24/7`) tiene una etiqueta reconocida.
+> **A-3 · Las etiquetas descriptivas de sesión no equivalen a `"24/7"` ni
+> `"24/5"`.** Las comparaciones en `aplicar_sesion` son exactas. En el catálogo
+> vigente solo `BTCUSDT` y `TOTAL` declaran `24/7`; el resto conserva todas las
+> velas observadas porque no hay un calendario horario exacto que aplicar.
 
-> **A-4 · Cobertura no disponible salvo `24/7` y `24/5`.**
-> `datos.calcular_cobertura` solo calcula intervalos esperados para esas dos
-> etiquetas exactas. Para las otras siete emite `disponible: false` con su razón.
-> En la práctica solo `BTCUSDT` muestra un porcentaje de cobertura.
+> **A-4 · Cobertura solo para `24/7`.** La rejilla simplificada de días
+> laborables no modelaba pausas diarias y aperturas semanales de los mercados
+> `24/5`, por lo que ahora se marca como no disponible sin calendario exacto.
+> En el catálogo vigente solo `BTCUSDT` y `TOTAL` muestran cobertura.
 
 > **A-5 · Etiquetas "ponderada" que en realidad son media simple.**
 > Los siguientes textos dicen "ponderad*" pero el cálculo es una media
@@ -305,4 +306,4 @@ Todas se calculan sobre la serie con la **sesión declarada** aplicada.
    del manifiesto, nunca la hora del navegador.
 3. **Sin vista de calidad de datos.** Ver §1.2.
 4. **El catálogo se sirve precalculado** desde `manifest.json` en lugar de
-   validar los ocho CSV en cada carga.
+   validar los quince CSV en cada carga.

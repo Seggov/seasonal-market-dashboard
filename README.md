@@ -1,10 +1,11 @@
-# Seasonal Market Dashboard | Analisis estacional H1
+# Seasonal Market Dashboard | Analisis estacional de mercados
 
 [Sitio publicado](https://seggov.github.io/seasonal-market-dashboard/) ·
 [Repositorio](https://github.com/Seggov/seasonal-market-dashboard)
 
-Panel **estatico** para explorar patrones temporales en **604.111 velas OHLCV
-H1** de ocho instrumentos financieros. Python valida los datos y genera JSON
+Panel **estatico** para explorar patrones temporales en **546.857 velas OHLC**
+de quince instrumentos financieros con temporalidades de 5 minutos a 4 horas.
+Python valida los datos y genera JSON
 versionado durante la construccion; el sitio publicado es HTML, CSS y
 JavaScript vanilla sobre GitHub Pages, **sin backend y sin Python en tiempo de
 ejecucion**.
@@ -70,7 +71,7 @@ Nueve vistas, todas graficas:
 9. **Extremos:** ranking de los diez mejores y los diez peores dias.
 
 Las vistas horaria y de matriz solo aparecen si el instrumento tiene datos
-intradia. Con los ocho CSV actuales todos los tienen.
+intradia. Con los quince CSV actuales todos tienen datos intradia.
 
 El unico control es la navegacion: instrumento y vista. Ambos viajan en el hash
 de la URL (`#/XAUUSD/matriz`), asi que cualquier vista es enlazable.
@@ -81,7 +82,7 @@ La interfaz imita un terminal de mercado: fondo oscuro, tipografia
 monoespaciada y cifras alineadas por columnas. No hay tema claro, ni emojis, ni
 paneles plegables.
 
-- Una barra superior con los ocho instrumentos y, debajo, las nueve vistas.
+- Una barra superior con los quince instrumentos y, debajo, las nueve vistas.
 - Cabecera con simbolo, mercado, temporalidad, zona horaria, rango y numero de
   observaciones.
 - Cada grafico vive en su propia tarjeta, con titulo y unidad en la cabecera.
@@ -124,19 +125,28 @@ unidad y, si tampoco cabe, queda solo el color.
 
 ## Datos incluidos
 
-El snapshot versionado fue actualizado el **26 de julio de 2026** y contiene
-ocho instrumentos con coberturas diferentes:
+El snapshot contiene quince instrumentos con coberturas y temporalidades
+diferentes. Las fechas de la tabla son las marcas UTC de la primera y última
+vela. La procedencia y las transformaciones se describen en
+[`data/FUENTES_DATOS.txt`](data/FUENTES_DATOS.txt).
 
 | Simbolo | Instrumento y fuente | Filas | Cobertura UTC | Zona de analisis |
 |---|---|---:|---|---|
-| `BTCUSDT` | Bitcoin/USDT spot, Binance | 78.245 | 2017-08-17 a 2026-07-26 | UTC |
-| `SP500` | S&P 500 oficial `^GSPC`, Yahoo Finance | 5.081 | 2023-08-25 a 2026-07-24 | `America/New_York` |
-| `NIKKEI225` | Nikkei 225 oficial `^N225`, Yahoo Finance | 5.090 | 2023-07-28 a 2026-07-24 | `Asia/Tokyo` |
-| `USA500IDXUSD` | US 500 CFD bid, Dukascopy | 74.294 | 2011-09-18 a 2026-07-24 | `America/New_York` |
-| `JPNIDXJPY` | Japan 225 CFD bid, Dukascopy | 75.722 | 2011-09-18 a 2026-07-24 | `Asia/Tokyo` |
-| `XAUUSD` | Oro spot bid, Dukascopy | 140.352 | 2003-05-05 a 2026-07-24 | `America/New_York` |
-| `XAGUSD` | Plata spot bid, Dukascopy | 139.418 | 2003-05-04 a 2026-07-24 | `America/New_York` |
-| `WTI_LIGHTCMDUSD` | Petroleo WTI CFD bid, Dukascopy | 85.909 | 2011-09-23 a 2026-07-24 | `America/New_York` |
+| `BTCUSDT` | Bitcoin / USDT, Binance Spot, 1h | 78.245 | 2017-08-17 a 2026-07-26 | UTC |
+| `TOTAL` | Total Crypto Market Cap, CryptoCap, 1h | 41.116 | 2022-01-01 a 2026-09-10 | UTC |
+| `SPX` | S&P 500 Index, 1h | 41.145 | 2003-01-02 a 2026-09-09 | `America/New_York` |
+| `NDX` | NASDAQ 100 Index, 4h | 13.381 | 2000-01-03 a 2026-09-09 | `America/New_York` |
+| `IBEX35` | IBEX 35 Index, 1h | 40.420 | 2009-02-02 a 2026-09-09 | `Europe/Madrid` |
+| `JP225` | Nikkei 225 (USD), OANDA, 1h | 45.466 | 2019-01-01 a 2026-09-10 | `Asia/Tokyo` |
+| `SPCLXIGL` | S&P/CLX IGPA Large, 5m | 40.353 | 2024-07-22 a 2026-08-31 | `America/Santiago` |
+| `GC1` | Futuros de oro (GC1!), 1h | 23.665 | 2022-09-08 a 2026-09-10 | `America/New_York` |
+| `SI1` | Futuros de plata (SI1!), 1h | 23.799 | 2022-08-31 a 2026-09-10 | `America/New_York` |
+| `HG1` | Futuros de cobre (HG1!), 1h | 23.630 | 2022-09-11 a 2026-09-10 | `America/New_York` |
+| `XAUUSD` | Oro al contado, OANDA, 1h | 45.485 | 2019-01-01 a 2026-09-10 | `America/New_York` |
+| `CL1` | Futuros de petróleo WTI (CL1!), 1h | 45.469 | 2019-01-01 a 2026-09-10 | `America/New_York` |
+| `NG1` | Futuros de gas natural (NG1!), 1h | 23.639 | 2022-09-09 a 2026-09-10 | `America/New_York` |
+| `ZS1` | Futuros de soja (ZS1!), 1h | 18.871 | 2022-09-12 a 2026-09-10 | `America/Chicago` |
+| `US10Y` | Rendimiento Treasury 10 años, 1h | 42.173 | 2019-01-02 a 2026-09-10 | `America/New_York` |
 
 Los indices oficiales y sus CFD se mantienen separados. Aunque representen
 mercados relacionados, tienen proveedores, sesiones, coberturas, precios y
@@ -154,7 +164,7 @@ antes de publicar.
 flowchart LR
     subgraph build["Construccion (Python, GitHub Actions)"]
         catalog["data/activos.json"] --> config["configuracion.py"]
-        csv["CSV OHLCV H1"] --> data["datos.py<br/>lectura y validacion"]
+        csv["CSV OHLC, temporalidades mixtas"] --> data["datos.py<br/>lectura y validacion"]
         config --> data
         data --> views["vistas.py<br/>transformaciones puras"]
         views --> export["exportador.py<br/>contrato JSON v2"]
@@ -204,7 +214,7 @@ analisis sea la que esta bajo prueba.
 
 ```text
 seasonal-market-dashboard/
-|-- data/                     fuentes: activos.json y ocho CSV H1
+|-- data/                     activos.json y quince CSV OHLC
 |-- src/                      nucleo Python de construccion
 |   |-- configuracion.py
 |   |-- datos.py
@@ -242,7 +252,7 @@ seasonal-market-dashboard/
    coherencia OHLC y duplicados.
 4. Los timestamps se conservan en UTC y se convierten a la zona IANA del
    mercado para el analisis local.
-5. Se calcula el retorno de cada vela desde `open` y `close`.
+5. Se calcula la variacion con la formula declarada para el activo.
 6. `vistas.py` aplica la sesion declarada y calcula las nueve vistas.
 7. `exportador.py` las serializa en un unico `report.json` por instrumento.
 8. `tools/build_web.py` escribe `dist/` y `tools/check_dist.py` lo valida.
@@ -261,8 +271,8 @@ descarga nada.
 ### Actualizacion de los datos
 
 El repositorio versiona *snapshots* ya preparados y **no incluye un pipeline de
-descarga** desde Binance, Yahoo Finance o Dukascopy. Para publicar datos nuevos
-hay que reemplazar los CSV de `data/`, volver a construir y desplegar.
+descarga**. Para publicar datos nuevos hay que reemplazar los CSV de `data/`,
+volver a construir y desplegar.
 
 Una actualizacion automatica futura necesitaria dos piezas que hoy no existen:
 un pipeline de descarga y normalizacion, y un workflow programado que lo
@@ -284,7 +294,7 @@ timestamp_utc,open,high,low,close,volume
 Reglas principales:
 
 - `timestamp_utc` debe ser interpretable como fecha valida;
-- `open`, `high`, `low` y `close` deben ser numericos, finitos y no negativos;
+- `open`, `high`, `low` y `close` deben ser numericos y finitos; pueden ser negativos;
 - `volume` puede estar vacio, pero debe ser finito y no negativo cuando existe;
 - `high` no puede ser menor que `low`, `open` o `close`;
 - `low` no puede ser mayor que `open` o `close`;
@@ -297,14 +307,21 @@ en un porcentaje precalculado por la fuente.
 
 ## Metodologia de retornos
 
-Para una vela o un periodo agregado se utiliza:
+La formula depende del instrumento y se declara en `activos.json`:
 
 ```text
 retorno_porcentual = (cierre_final / apertura_inicial - 1) * 100
+variacion_bps = (cierre_final - apertura_inicial) * 100
+variacion_precio = cierre_final - apertura_inicial
 ```
 
-Para periodos de mayor duracion se toma la primera apertura y el ultimo cierre
-en orden cronologico. Los retornos simples de las velas no se suman.
+`US10Y` usa puntos basicos para expresar el cambio del rendimiento, y `CL1`
+usa variacion absoluta en USD por barril porque hubo precios negativos en abril
+de 2020. Los retornos porcentuales solo se calculan cuando apertura y cierre
+son positivos. Los informes declaran `unidadMetrica`; aunque el campo heredado
+`return_percent` conserva su nombre, su unidad procede del instrumento. En
+periodos agregados se toma primera apertura y ultimo cierre; los retornos
+simples de las velas no se suman.
 
 El nucleo calcula:
 
@@ -480,7 +497,8 @@ python -m pytest -q
 - contrato CSV, OHLC, duplicados, retornos y metadata derivada;
 - zonas horarias, DST de primavera y otono, semanas ISO que cruzan de ano,
   velas en `HH:30` y sesiones que cruzan medianoche;
-- cobertura `24/7` y `24/5`;
+- cobertura continua `24/7`; sesiones extendidas sin calendario exacto se
+  marcan como no disponibles;
 - firmas, roundtrip e invalidacion de cache corrupta;
 - transformaciones de vista extraidas de la capa de presentacion;
 - contrato JSON: saneamiento estricto, epochs independientes de la resolucion
@@ -493,12 +511,12 @@ lleve las nueve vistas.
 GitHub Actions ejecuta todo lo anterior en cada push y pull request a `main`.
 
 La verificacion visual se hace a mano antes de publicar: las nueve vistas de los
-ocho instrumentos -- setenta y dos combinaciones -- en escritorio y a 375 px de
+quince instrumentos -- ciento treinta y cinco combinaciones -- en escritorio y a 375 px de
 ancho, comprobando que ninguna deja el documento con desplazamiento horizontal.
 
 ## Como agregar un activo
 
-1. Normaliza el historial al contrato OHLCV H1.
+1. Normaliza el historial al contrato OHLC con la temporalidad declarada.
 2. Guarda el CSV dentro de `data/`.
 3. Agrega una entrada a `data/activos.json` con mercado, sesion, zona IANA,
    timeframe, archivo y tipo de timestamp.
@@ -508,23 +526,18 @@ ancho, comprobando que ninguna deja el documento con desplazamiento horizontal.
 6. Reconstruye con `python tools/build_web.py` y valida con `check_dist.py`.
 
 El cargador descubre simbolos dinamicamente: la pestana nueva aparece sola en la
-barra superior, sin tocar el codigo del frontend. La prueba de regresion del
-catalogo fija los ocho simbolos versionados, asi que debe actualizarse si se
-incorpora un noveno al snapshot oficial.
+barra superior, sin tocar el codigo del frontend.
 
 ## Procedencia de precios y volumen
 
-- BTC usa precios y volumen spot de Binance.
-- Los indices Yahoo pueden publicar volumen cero o no disponible.
-- Dukascopy aporta precios `bid` y volumen del proveedor, no volumen oficial de
-  la bolsa o mercado subyacente.
-- El volumen se valida, pero actualmente no se analiza ni visualiza.
-- Cuarenta y una velas WTI tuvieron antes de ser incorporadas un ajuste maximo
-  de `0.002` en `high/low` para restaurar coherencia OHLC. El detalle esta en
-  `data/FUENTES_DATOS.txt`.
+- `BTCUSDT` incluye el volumen reportado por Binance Spot.
+- En los otros catorce archivos el volumen no esta disponible y se representa
+  con una celda vacia; no se convierte en un cero observado.
+- Las velas WTI negativas del 20 de abril de 2020 se conservan. Para `CL1` se
+  muestra variacion absoluta de precio, no retorno porcentual.
 
-El proyecto versiona snapshots ya preparados. No incluye el pipeline de
-descarga o regeneracion desde Binance, Yahoo Finance o Dukascopy.
+El proyecto versiona snapshots ya preparados. El CSV es la entrada reproducible
+del build; las exportaciones originales de TradingView no estan versionadas.
 
 ## Estructura de los datos publicados
 
@@ -539,7 +552,7 @@ dist/data/
 `-- ...
 ```
 
-- **`schemaVersion`** actual: `2`. Cada archivo la declara.
+- **`schemaVersion`** actual: `3`. Cada archivo la declara.
 - **JSON estricto**: no se emiten `NaN` ni infinitos; todo valor no finito viaja
   como `null`.
 - **Solo lo que se dibuja**: cada fila estacional lleva la clave del eje, el

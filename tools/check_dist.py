@@ -23,7 +23,7 @@ MAX_SITIO_MB = 200.0
 MAX_INICIAL_MB = 6.0
 MAX_FRAGMENTO_MB = 8.0
 
-ESQUEMA = 2
+ESQUEMA = 3
 
 VISTAS_ESPERADAS = (
     "resumen", "periodo", "mensual", "semanal", "diaSemana",

@@ -1,6 +1,6 @@
 # Contrato JSON del sitio estático
 
-`schemaVersion` actual: **2**
+`schemaVersion` actual: **3**
 
 El sitio **solo dibuja**. Cada vista viaja ya calculada desde Python, así que el
 contrato publica resultados agregados y no series de velas.
@@ -40,8 +40,8 @@ Catálogo mínimo: lo que necesitan las pestañas y la cabecera.
 
 ```jsonc
 {
-  "schemaVersion": 2,
-  "processingVersion": "2.0.0",
+  "schemaVersion": 3,
+  "processingVersion": "3.0.0",
   "generatedAt": "2026-08-29T19:31:22+00:00",
   "contentHash": "…",
   "sourceRowCount": 604111,
@@ -70,9 +70,11 @@ Catálogo mínimo: lo que necesitan las pestañas y la cabecera.
 
 ```jsonc
 {
-  "schemaVersion": 2,
-  "processingVersion": "2.0.0",
+  "schemaVersion": 3,
+  "processingVersion": "3.0.0",
   "symbol": "XAUUSD",
+  "unidadMetrica": "%",
+  "nombreMetrica": "Retorno",
   "vistas": {
     "resumen":   { "metricas": {…}, "velas": {…} },
     "periodo":   { "anual": […], "pivote": { "años": […], "meses": [[…12]] } },
@@ -86,6 +88,13 @@ Catálogo mínimo: lo que necesitan las pestañas y la cabecera.
   }
 }
 ```
+
+`unidadMetrica` y `nombreMetrica` identifican la medida que usan todas las
+vistas del informe. La clave historica `return_percent` conserva su nombre,
+pero debe interpretarse con `unidadMetrica`: `%` para retornos simples,
+`bps` para cambios de rendimiento de tasas y `$/bbl` para cambios absolutos del
+precio WTI. El retorno porcentual no se calcula si el precio inicial o final no
+es positivo.
 
 ### Filas estacionales
 

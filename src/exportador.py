@@ -34,8 +34,8 @@ from .configuracion import ActivoConfig
 from .datos import ResultadoValidacion
 
 
-SCHEMA_VERSION = 2
-PROCESSING_VERSION = "2.0.0"
+SCHEMA_VERSION = 3
+PROCESSING_VERSION = "3.0.0"
 
 METRICA_MATRIZ = "mean"
 MINIMO_MATRIZ = 5
@@ -365,7 +365,8 @@ def construir_informe(
         "unidadMetrica": activo.unidad_retorno,
         "nombreMetrica": (
             "Cambio del rendimiento" if activo.unidad_retorno == "bps"
-            else "Variación del precio" if activo.unidad_retorno == "puntos"
+            else "Variación del precio"
+            if activo.formula_retorno == "close_final - open_inicial"
             else "Retorno"
         ),
         "vistas": calcular_vistas(datos_sesion, activo, columna_fecha),
