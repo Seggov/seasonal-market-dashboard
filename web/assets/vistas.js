@@ -28,8 +28,8 @@ const bloque = (hijos) => elemento('div', { clase: 'view__body' }, [].concat(hij
 /**
  * Decimales con los que un mapa de calor resulta legible.
  *
- * Los retornos horarios son centesimas de punto: con dos decimales casi toda la
- * rejilla mostraria `0.00`. Se eligen segun la magnitud real de los datos para
+ * Las variaciones horarias pueden ser muy pequeñas: con dos decimales casi
+ * toda la rejilla mostraria `0.00`. Se eligen segun la magnitud real para
  * que cada celda diga algo.
  */
 function decimalesUtiles(matriz) {
@@ -103,7 +103,7 @@ function mensual({ vistas }) {
       datos.estacional.map((f) => f.promedio),
       { titulo: 'Retorno medio por mes', altura: 300 }),
     curvas(datos.curvas, MESES, 1),
-    nota('Cada curva promedia el retorno acumulado desde la primera apertura del mes, por día del mes y a través de todos los años.'),
+    nota('Cada curva promedia la variación acumulada desde la primera apertura del mes, por día del mes y a través de todos los años.'),
   ]);
 }
 
@@ -128,7 +128,7 @@ function diaSemana({ vistas }) {
   ];
   if (datos.trayectorias.length) {
     hijos.push(curvas(datos.trayectorias, DIAS, 0));
-    hijos.push(nota('Retorno acumulado medio respecto a la primera apertura de cada día.'));
+    hijos.push(nota('Variación acumulada media respecto a la primera apertura de cada día.'));
   }
   return bloque(hijos);
 }

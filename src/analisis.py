@@ -1,8 +1,8 @@
 """Nucleo estadistico para DataFrames de velas OHLC.
 
 El modulo no descarga datos, no supone calendarios de mercado y no calcula
-indicadores ni predicciones. Los retornos de una vela o periodo siempre se
-calculan como ``(ultimo_close / primer_open - 1) * 100``; nunca se suman.
+indicadores ni predicciones. Los cambios de una vela o periodo se calculan con
+la formula declarada para el activo; no se suman cambios simples entre velas.
 """
 
 from __future__ import annotations
